@@ -48,23 +48,7 @@ export default function Hero() {
               </Button>
             </div>
 
-            {/* Pill Buttons */}
-            <div className="flex flex-wrap gap-3 pt-4">
-              <Link 
-                to="/services"
-                className="inline-flex items-center gap-2 px-5 py-3 bg-white rounded-full border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-sm font-medium text-gray-700"
-              >
-                <Users className="w-4 h-4" />
-                Group Therapy
-              </Link>
-              <Link 
-                to="/assessments"
-                className="inline-flex items-center gap-2 px-5 py-3 bg-white rounded-full border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-sm font-medium text-gray-700"
-              >
-                <ClipboardList className="w-4 h-4" />
-                Assessment Session
-              </Link>
-            </div>
+
           </div>
 
           {/* Right Image Card */}
@@ -135,6 +119,24 @@ export default function Hero() {
                   Explore More
                 </Link>
               </div>
+            </div>
+
+            {/* Pill Buttons - Moved from Left Column */}
+            <div className="flex flex-wrap gap-3 mt-6 justify-center lg:justify-start">
+              <Link 
+                to="/services"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-white rounded-full border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-sm font-medium text-gray-700"
+              >
+                <Users className="w-4 h-4" />
+                Group Therapy
+              </Link>
+              <Link 
+                to="/assessments"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-white rounded-full border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-sm font-medium text-gray-700"
+              >
+                <ClipboardList className="w-4 h-4" />
+                Assessment Session
+              </Link>
             </div>
 
             {/* Decorative Elements */}

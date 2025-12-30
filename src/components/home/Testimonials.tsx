@@ -114,20 +114,7 @@ export default function Testimonials() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 pt-16 border-t border-primary-foreground/10">
-          {[
-            { value: "100+", label: "Happy Patients" },
-            { value: "5+", label: "Services" },
-            { value: "10+", label: "Locations" },
-            { value: "15+", label: "Programs" },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <p className="font-serif text-4xl md:text-5xl text-accent mb-2">{stat.value}</p>
-              <p className="text-primary-foreground/60 text-sm">{stat.label}</p>
-            </div>
-          ))}
-        </div>
+
       </div>
     </section>
   );

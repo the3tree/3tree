@@ -82,7 +82,7 @@ export default function Header() {
                   <Button
                     variant="ghost"
                     style={{ boxShadow: 'none', outline: 'none' }}
-                    className={`text-lg font-medium !outline-0 !outline-none !ring-0 !shadow-none focus:!outline-0 focus:!ring-0 focus:!shadow-none focus-visible:!outline-0 focus-visible:!ring-0 focus-visible:!ring-offset-0 active:!outline-0 active:!ring-0 ${
+                    className={`text-lg font-medium !outline-0 !outline-none !ring-0 !shadow-none focus:!outline-0 focus:!ring-0 focus:!shadow-none focus-visible:!outline-0 focus-visible:!ring-0 focus-visible:!ring-offset-0 active:!outline-0 active:!ring-0 hover:text-accent ${
                       isActive(item.href) ? "text-accent" : "text-foreground"
                     }`}
                   >
@@ -98,16 +98,16 @@ export default function Header() {
                   {item.children.map((child) =>
                     child.children ? (
                       <DropdownMenuSub key={child.name}>
-                        <DropdownMenuSubTrigger className="flex items-center justify-between w-full p-3 text-base font-medium rounded-lg hover:bg-gray-50 cursor-pointer outline-none">
+                        <DropdownMenuSubTrigger className="flex items-center justify-between w-full p-3 text-base font-medium rounded-lg hover:bg-gray-50 focus:bg-gray-50 hover:text-accent focus:text-accent data-[state=open]:text-accent data-[state=open]:bg-gray-50 cursor-pointer outline-none">
                           {child.name}
-                          <ChevronRight className="ml-auto h-4 w-4 text-gray-400" />
+                          <ChevronRight className="ml-auto h-4 w-4 text-gray-400 group-hover:text-accent group-focus:text-accent" />
                         </DropdownMenuSubTrigger>
                         <DropdownMenuSubContent className="w-64 p-2 bg-white shadow-xl border-gray-100 rounded-xl">
                           {child.children.map((subChild) => (
-                            <DropdownMenuItem key={subChild.name} asChild className="p-0 mb-1 last:mb-0 focus:bg-transparent">
+                            <DropdownMenuItem key={subChild.name} asChild className="p-0 mb-1 last:mb-0 focus:bg-transparent focus:text-accent">
                               <Link
                                 to={subChild.href}
-                                className={`block p-3 text-base font-medium rounded-lg hover:bg-gray-50 transition-colors ${
+                                className={`block p-3 text-base font-medium rounded-lg hover:bg-gray-50 transition-colors hover:text-accent ${
                                   isActive(subChild.href) ? "text-accent bg-gray-50" : "text-gray-700"
                                 }`}
                               >
@@ -118,10 +118,10 @@ export default function Header() {
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
                     ) : (
-                      <DropdownMenuItem key={child.name} asChild className="p-0 mb-1 last:mb-0 focus:bg-transparent">
+                      <DropdownMenuItem key={child.name} asChild className="p-0 mb-1 last:mb-0 focus:bg-transparent focus:text-accent">
                         <Link
                           to={child.href}
-                          className={`block p-3 text-base font-medium rounded-lg hover:bg-gray-50 transition-colors ${
+                          className={`block p-3 text-base font-medium rounded-lg hover:bg-gray-50 transition-colors hover:text-accent ${
                             isActive(child.href) ? "text-accent bg-gray-50" : "text-gray-700"
                           }`}
                         >
@@ -137,7 +137,7 @@ export default function Header() {
                 key={item.name}
                 variant="ghost"
                 asChild
-                className={`text-lg font-medium ${
+                className={`text-lg font-medium hover:text-accent ${
                   isActive(item.href) ? "text-accent" : "text-foreground"
                 }`}
               >
