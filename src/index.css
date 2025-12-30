@@ -1,0 +1,230 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* The 3 Tree - Therapy & Wellness Design System */
+
+@layer base {
+  :root {
+    /* Core brand colors - Deep navy/teal, warm cream, healing sage */
+    --background: 40 33% 96%;
+    --foreground: 215 30% 18%;
+
+    --card: 40 40% 98%;
+    --card-foreground: 215 30% 18%;
+
+    --popover: 40 40% 98%;
+    --popover-foreground: 215 30% 18%;
+
+    /* Primary - Deep navy/teal */
+    --primary: 215 35% 18%;
+    --primary-foreground: 40 33% 96%;
+
+    /* Secondary - Warm cream */
+    --secondary: 38 35% 92%;
+    --secondary-foreground: 215 30% 18%;
+
+    /* Muted - Soft gray tones */
+    --muted: 40 20% 90%;
+    --muted-foreground: 215 15% 45%;
+
+    /* Accent - Sage green (healing) */
+    --accent: 160 25% 45%;
+    --accent-foreground: 40 33% 96%;
+
+    /* Warm accent for CTAs */
+    --warm: 28 60% 55%;
+    --warm-foreground: 40 33% 96%;
+
+    /* Hero section deep teal */
+    --hero: 210 35% 15%;
+    --hero-foreground: 40 33% 96%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 40 33% 96%;
+
+    --border: 40 20% 85%;
+    --input: 40 20% 88%;
+    --ring: 160 25% 45%;
+
+    --radius: 0.75rem;
+
+    /* Custom gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(210, 35%, 12%) 0%, hsl(215, 30%, 22%) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(28, 60%, 55%) 0%, hsl(35, 55%, 60%) 100%);
+    --gradient-sage: linear-gradient(135deg, hsl(160, 25%, 40%) 0%, hsl(165, 20%, 50%) 100%);
+
+    /* Shadows */
+    --shadow-soft: 0 4px 20px -4px hsl(215 30% 18% / 0.08);
+    --shadow-card: 0 8px 30px -10px hsl(215 30% 18% / 0.12);
+    --shadow-glow: 0 0 40px hsl(160 25% 45% / 0.15);
+
+    /* Sidebar */
+    --sidebar-background: 40 33% 96%;
+    --sidebar-foreground: 215 30% 18%;
+    --sidebar-primary: 215 35% 18%;
+    --sidebar-primary-foreground: 40 33% 96%;
+    --sidebar-accent: 160 25% 45%;
+    --sidebar-accent-foreground: 40 33% 96%;
+    --sidebar-border: 40 20% 85%;
+    --sidebar-ring: 160 25% 45%;
+  }
+
+  .dark {
+    --background: 215 35% 12%;
+    --foreground: 40 33% 96%;
+
+    --card: 215 30% 16%;
+    --card-foreground: 40 33% 96%;
+
+    --popover: 215 30% 16%;
+    --popover-foreground: 40 33% 96%;
+
+    --primary: 40 33% 96%;
+    --primary-foreground: 215 35% 12%;
+
+    --secondary: 215 25% 22%;
+    --secondary-foreground: 40 33% 96%;
+
+    --muted: 215 25% 20%;
+    --muted-foreground: 40 20% 70%;
+
+    --accent: 160 25% 50%;
+    --accent-foreground: 215 35% 12%;
+
+    --warm: 28 60% 55%;
+    --warm-foreground: 215 35% 12%;
+
+    --hero: 210 35% 10%;
+    --hero-foreground: 40 33% 96%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 40 33% 96%;
+
+    --border: 215 25% 25%;
+    --input: 215 25% 22%;
+    --ring: 160 25% 50%;
+
+    --sidebar-background: 215 35% 12%;
+    --sidebar-foreground: 40 33% 96%;
+    --sidebar-primary: 40 33% 96%;
+    --sidebar-primary-foreground: 215 35% 12%;
+    --sidebar-accent: 160 25% 50%;
+    --sidebar-accent-foreground: 215 35% 12%;
+    --sidebar-border: 215 25% 25%;
+    --sidebar-ring: 160 25% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-tight;
+  }
+}
+
+@layer components {
+  .hero-gradient {
+    background: var(--gradient-hero);
+  }
+
+  .text-gradient-warm {
+    background: var(--gradient-warm);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .card-elevated {
+    @apply bg-card rounded-xl shadow-card border border-border/50;
+  }
+
+  .glow-accent {
+    box-shadow: var(--shadow-glow);
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft 0.8s ease-out forwards;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-soft {
+    animation: pulseSoft 3s ease-in-out infinite;
+  }
+
+  .animate-text-cycle {
+    animation: textCycle 8s ease-in-out infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes textCycle {
+  0%, 18% { content: "SEEN..."; }
+  20%, 38% { content: "HEARD..."; }
+  40%, 58% { content: "UNDERSTOOD..."; }
+  60%, 78% { content: "EMPOWERED..."; }
+  80%, 100% { content: "WHOLE..."; }
+}
