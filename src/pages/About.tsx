@@ -3,6 +3,7 @@ import Layout from "@/components/layout/Layout";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Heart, Target, Compass } from "lucide-react";
+import BackButton from "@/components/ui/BackButton";
 
 export default function About() {
   return (
@@ -16,7 +17,10 @@ export default function About() {
       </Helmet>
       <Layout>
         {/* Hero */}
-        <section className="py-20 lg:py-28 bg-primary text-primary-foreground">
+        <section className="relative py-20 lg:py-28 bg-primary text-primary-foreground">
+          <div className="absolute top-6 left-4 lg:left-8">
+            <BackButton to="/" label="Back to Home" className="text-white/80 hover:text-white hover:bg-white/10" />
+          </div>
           <div className="container mx-auto px-4 lg:px-8">
             <div className="max-w-3xl mx-auto text-center">
               <p className="text-accent font-sans tracking-widest text-sm mb-4">ABOUT US</p>

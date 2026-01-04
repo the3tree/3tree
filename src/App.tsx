@@ -4,12 +4,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
-import Home from "./pages/Home";
+import { AuthProvider } from "@/contexts/AuthContext";
+
+// Pages
+import Home from "./pages/Index";
 import About from "./pages/About";
 import Services from "./pages/Services";
 import Team from "./pages/Team";
 import FAQs from "./pages/FAQs";
-import Guides from "./pages/Guides";
 import ForClients from "./pages/ForClients";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
@@ -36,49 +38,105 @@ import SupportBusinesses from "./pages/SupportBusinesses";
 import SupportSchools from "./pages/SupportSchools";
 import SupportWorkshops from "./pages/SupportWorkshops";
 
+// Dashboard Pages
+import PatientDashboard from "./pages/dashboard/PatientDashboard";
+import TherapistDashboard from "./pages/dashboard/TherapistDashboard";
+import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import SuperAdminDashboard from "./pages/dashboard/SuperAdminDashboard";
+
+// Booking
+import BookingPage from "./pages/BookingPage";
+
+// Blogs
+import BlogsPage from "./pages/BlogsPage";
+
+// Video Call
+import VideoCallRoom from "./pages/VideoCallRoom";
+
+// Messages
+import MessagesPage from "./pages/MessagesPage";
+
+// New Pages
+import EBooks from "./pages/EBooks";
+import Shop from "./pages/Shop";
+import Stories from "./pages/Stories";
+import IntakeForm from "./pages/IntakeForm";
+import AssessmentTake from "./pages/AssessmentTake";
+import TherapistProfile from "./pages/TherapistProfile";
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/our-story" element={<OurStory />} />
-            <Route path="/assessments" element={<Assessments />} />
-            <Route path="/assessment-results" element={<AssessmentResults />} />
-            <Route path="/phq-9-questionnaire" element={<PHQ9Questionnaire />} />
-            <Route path="/gad-7-questionnaire" element={<GAD7Questionnaire />} />
-            <Route path="/pss-questionnaire" element={<PSSQuestionnaire />} />
-            <Route path="/ptsd-questionnaire" element={<PTSDQuestionnaire />} />
-            <Route path="/dast-questionnaire" element={<DASTQuestionnaire />} />
-            <Route path="/scoff-questionnaire" element={<SCOFFQuestionnaire />} />
-            <Route path="/bfi-questionnaire" element={<BFIQuestionnaire />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/specialities" element={<Specialities />} />
-            <Route path="/counselling-types" element={<CounsellingTypes />} />
-            <Route path="/counselling-modes" element={<CounsellingModes />} />
-            <Route path="/team" element={<Team />} />
-            <Route path="/join-team" element={<JoinTeam />} />
-            <Route path="/faqs" element={<FAQs />} />
-            <Route path="/guides" element={<DownloadableGuides />} />
-            <Route path="/topics" element={<Topics />} />
-            <Route path="/for-clients" element={<ForClients />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/supervision-therapists" element={<SupervisionTherapists />} />
-            <Route path="/support-businesses" element={<SupportBusinesses />} />
-            <Route path="/support-schools" element={<SupportSchools />} />
-            <Route path="/support-workshops" element={<SupportWorkshops />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/our-story" element={<OurStory />} />
+              <Route path="/assessments" element={<Assessments />} />
+              <Route path="/assessment-results" element={<AssessmentResults />} />
+              <Route path="/phq-9-questionnaire" element={<PHQ9Questionnaire />} />
+              <Route path="/gad-7-questionnaire" element={<GAD7Questionnaire />} />
+              <Route path="/pss-questionnaire" element={<PSSQuestionnaire />} />
+              <Route path="/ptsd-questionnaire" element={<PTSDQuestionnaire />} />
+              <Route path="/dast-questionnaire" element={<DASTQuestionnaire />} />
+              <Route path="/scoff-questionnaire" element={<SCOFFQuestionnaire />} />
+              <Route path="/bfi-questionnaire" element={<BFIQuestionnaire />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/specialities" element={<Specialities />} />
+              <Route path="/counselling-types" element={<CounsellingTypes />} />
+              <Route path="/counselling-modes" element={<CounsellingModes />} />
+              <Route path="/team" element={<Team />} />
+              <Route path="/therapist/:id" element={<TherapistProfile />} />
+              <Route path="/join-team" element={<JoinTeam />} />
+              <Route path="/faqs" element={<FAQs />} />
+              <Route path="/guides" element={<DownloadableGuides />} />
+              <Route path="/topics" element={<Topics />} />
+              <Route path="/for-clients" element={<ForClients />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/supervision-therapists" element={<SupervisionTherapists />} />
+              <Route path="/support-businesses" element={<SupportBusinesses />} />
+              <Route path="/support-schools" element={<SupportSchools />} />
+              <Route path="/support-workshops" element={<SupportWorkshops />} />
+              <Route path="/blogs/*" element={<BlogsPage />} />
+              <Route path="/ebooks" element={<EBooks />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/stories" element={<Stories />} />
+              <Route path="/intake-form" element={<IntakeForm />} />
+              <Route path="/assessments/:slug" element={<AssessmentTake />} />
+
+              {/* Auth Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+
+              {/* Protected Routes - Dashboards */}
+              <Route path="/dashboard" element={<PatientDashboard />} />
+              <Route path="/dashboard/patient" element={<PatientDashboard />} />
+              <Route path="/dashboard/therapist" element={<TherapistDashboard />} />
+              <Route path="/dashboard/admin" element={<AdminDashboard />} />
+              <Route path="/super-admin" element={<SuperAdminDashboard />} />
+
+              {/* Booking */}
+              <Route path="/booking" element={<BookingPage />} />
+              <Route path="/booking/:therapistId" element={<BookingPage />} />
+
+              {/* Communication */}
+              <Route path="/call/:roomId" element={<VideoCallRoom />} />
+              <Route path="/messages" element={<MessagesPage />} />
+              <Route path="/messages/:conversationId" element={<MessagesPage />} />
+
+              {/* 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   </HelmetProvider>
 );

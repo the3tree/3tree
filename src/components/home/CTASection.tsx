@@ -1,45 +1,135 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, MessageCircle } from "lucide-react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ArrowRight, Phone, Mail, MapPin } from "lucide-react";
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function CTASection() {
-  return (
-    <section className="py-20 lg:py-28 bg-secondary">
-      <div className="container mx-auto px-4 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* E-Books & Courses */}
-          <div className="card-elevated p-10 lg:p-12">
-            <h3 className="font-serif text-3xl text-foreground mb-4">E-Books & Courses</h3>
-            <p className="text-muted-foreground mb-6 leading-relaxed">
-              Discover a range of carefully crafted e-books and self-paced courses built to support
-              your mental well-being. From managing stress to building self-awareness and
-              resilience, these tools are here to guide and empower you.
-            </p>
-            <Button variant="outline" asChild>
-              <Link to="/guides">
-                Explore E-books
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
+  const sectionRef = useRef<HTMLDivElement>(null);
 
-          {/* Need Advice */}
-          <div className="card-elevated p-10 lg:p-12 bg-accent/5 border-accent/20">
-            <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center mb-6">
-              <MessageCircle className="h-7 w-7 text-accent" />
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        ".cta-content",
+        { opacity: 0, y: 40 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: ".cta-content",
+            start: "top 85%",
+          },
+        }
+      );
+
+      gsap.fromTo(
+        ".cta-card",
+        { opacity: 0, y: 30, scale: 0.95 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.6,
+          stagger: 0.1,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: ".cta-cards",
+            start: "top 80%",
+          },
+        }
+      );
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <section ref={sectionRef} className="py-20 lg:py-28 bg-gradient-to-br from-slate-50 via-white to-cyan-50/30 relative overflow-hidden">
+      {/* Decorative Background */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px]" />
+      </div>
+
+      <div className="container mx-auto px-4 lg:px-8 relative z-10">
+        {/* Main CTA */}
+        <div className="cta-content text-center max-w-3xl mx-auto mb-16">
+          <span className="inline-block text-sm tracking-[0.2em] text-primary font-semibold mb-4 uppercase">
+            Ready to Start?
+          </span>
+          <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl text-gray-900 mb-6 leading-tight">
+            Take the first step towards a{" "}
+            <span className="text-primary">healthier you</span>
+          </h2>
+          <p className="text-gray-600 text-lg mb-8">
+            Your journey to mental wellness begins with a single step. We're here to
+            support you every step of the way.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              to="/booking"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#1a2744] hover:bg-[#0f1a2e] text-white font-semibold rounded-lg shadow-lg shadow-gray-900/10 transition-all group"
+            >
+              Book Your Session
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link
+              to="/assessments"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold rounded-lg border-2 border-gray-200 hover:border-gray-300 transition-all"
+            >
+              Take a Free Assessment
+            </Link>
+          </div>
+        </div>
+
+        {/* Contact Cards */}
+        <div className="cta-cards grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          {/* Phone */}
+          <a
+            href="tel:+1234567890"
+            className="cta-card flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group"
+          >
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <Phone className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="font-serif text-3xl text-foreground mb-4">Need Advice?</h3>
-            <p className="text-muted-foreground mb-6 leading-relaxed">
-              Not sure where to begin? Whether you're feeling overwhelmed, unsure, or just need a
-              little guidance, we're here to support you. Reach out with your questions—sometimes, a
-              simple nudge in the right direction is all it takes.
-            </p>
-            <Button variant="accent" asChild>
-              <Link to="/contact">
-                Contact Us
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <div>
+              <p className="font-semibold text-gray-900">Call Us</p>
+              <p className="text-gray-500 text-sm">+91 123 456 7890</p>
+            </div>
+          </a>
+
+          {/* Email */}
+          <a
+            href="mailto:hello@the3tree.com"
+            className="cta-card flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group"
+          >
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <Mail className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Email Us</p>
+              <p className="text-gray-500 text-sm">hello@the3tree.com</p>
+            </div>
+          </a>
+
+          {/* Location */}
+          <div className="cta-card flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+              <MapPin className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Visit Us</p>
+              <p className="text-gray-500 text-sm">Online & In-Person</p>
+            </div>
           </div>
         </div>
       </div>

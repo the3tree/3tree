@@ -1,92 +1,184 @@
 import { Link } from "react-router-dom";
-import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
+import {
+  Facebook,
+  Twitter,
+  Instagram,
+  Linkedin,
+  Youtube,
+  Mail,
+  Phone,
+  MapPin,
+  Heart
+} from "lucide-react";
+
+const footerLinks = {
+  services: [
+    { name: "Individual Therapy", href: "/services#individual" },
+    { name: "Couple Therapy", href: "/services#couple" },
+    { name: "Group Therapy", href: "/services#group" },
+    { name: "Psychiatric Care", href: "/services#psychiatric" },
+    { name: "Holistic Coaching", href: "/services#holistic" },
+  ],
+  resources: [
+    { name: "Assessments", href: "/assessments" },
+    { name: "Mental Health A-Z", href: "/topics" },
+    { name: "Downloadable Guides", href: "/guides" },
+    { name: "Blog Articles", href: "/blogs" },
+    { name: "FAQs", href: "/faqs" },
+  ],
+  company: [
+    { name: "About Us", href: "/about" },
+    { name: "Our Team", href: "/team" },
+    { name: "Careers", href: "/join-team" },
+    { name: "Contact", href: "/contact" },
+    { name: "Privacy Policy", href: "/privacy" },
+  ],
+};
+
+const socialLinks = [
+  { icon: Facebook, href: "#", label: "Facebook" },
+  { icon: Twitter, href: "#", label: "Twitter" },
+  { icon: Instagram, href: "#", label: "Instagram" },
+  { icon: Linkedin, href: "#", label: "LinkedIn" },
+  { icon: Youtube, href: "#", label: "YouTube" },
+];
 
 export default function Footer() {
-  const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="bg-[#0f172a] text-white py-16 px-4 md:px-12 lg:px-24">
-      {/* Top Section */}
-      <div className="flex flex-col lg:flex-row justify-between items-center text-center lg:text-left gap-10 lg:gap-0 mb-12">
-        
-        {/* Left: Join Our Community */}
-        <div className="max-w-md">
-          <h3 className="text-xl font-semibold mb-3 tracking-wide">Join Our Community</h3>
-          <p className="text-gray-300 text-sm leading-relaxed">
-            Connect with others on a shared path of growth, healing, and support. You're not alone—we're in this together.
-          </p>
-        </div>
+    <footer className="bg-gray-900 text-gray-300">
+      {/* Main Footer */}
+      <div className="container mx-auto px-4 lg:px-8 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
+          {/* Brand Column */}
+          <div className="lg:col-span-2">
+            <Link to="/" className="flex items-center gap-3 mb-6">
+              <img
+                src="/logo.png"
+                alt="3-3.com Logo"
+                className="h-12 w-auto brightness-0 invert"
+              />
+            </Link>
+            <p className="text-gray-400 mb-6 max-w-sm leading-relaxed">
+              Your trusted partner in mental wellness. We provide compassionate,
+              professional therapy services to help you live your best life.
+            </p>
 
-        {/* Center: Logo */}
-        <div className="flex items-center gap-2">
-           <div className="w-12 h-12 rounded-full border-2 border-white flex items-center justify-center">
-                <span className="font-serif text-2xl">3</span>
-           </div>
-           <span className="font-serif text-3xl italic">The 3 Tree</span>
-        </div>
+            {/* Contact Info */}
+            <div className="space-y-3">
+              <a
+                href="mailto:support@3-3.com"
+                className="flex items-center gap-3 text-gray-400 hover:text-primary transition-colors"
+              >
+                <Mail className="w-5 h-5" />
+                support@3-3.com
+              </a>
+              <a
+                href="tel:+1234567890"
+                className="flex items-center gap-3 text-gray-400 hover:text-primary transition-colors"
+              >
+                <Phone className="w-5 h-5" />
+                +1 (234) 567-890
+              </a>
+              <div className="flex items-start gap-3 text-gray-400">
+                <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span>123 Wellness Street, Mental Health City, MH 12345</span>
+              </div>
+            </div>
+          </div>
 
-        {/* Right: Follow Along */}
-        <div className="max-w-md text-center lg:text-right flex flex-col items-center lg:items-end">
-          <h3 className="text-xl font-semibold mb-3 tracking-wide">Follow Along</h3>
-          <p className="text-gray-300 text-sm leading-relaxed mb-4">
-            Follow along for insights, inspiration, and gentle reminders to care for your mind and heart. Stay connected on the journey.
-          </p>
-          <div className="flex gap-4">
-             <a href="#" className="bg-white text-[#0f172a] p-2 rounded-full hover:bg-gray-200 transition">
-                <Facebook size={18} />
-             </a>
-             <a href="#" className="bg-white text-[#0f172a] p-2 rounded-full hover:bg-gray-200 transition">
-                <Instagram size={18} />
-             </a>
-             <a href="#" className="bg-white text-[#0f172a] p-2 rounded-full hover:bg-gray-200 transition">
-                <Linkedin size={18} />
-             </a>
+          {/* Services Links */}
+          <div>
+            <h4 className="font-semibold text-white mb-5">Services</h4>
+            <ul className="space-y-3">
+              {footerLinks.services.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    to={link.href}
+                    className="text-gray-400 hover:text-primary transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Resources Links */}
+          <div>
+            <h4 className="font-semibold text-white mb-5">Resources</h4>
+            <ul className="space-y-3">
+              {footerLinks.resources.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    to={link.href}
+                    className="text-gray-400 hover:text-primary transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Company Links */}
+          <div>
+            <h4 className="font-semibold text-white mb-5">Company</h4>
+            <ul className="space-y-3">
+              {footerLinks.company.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    to={link.href}
+                    className="text-gray-400 hover:text-primary transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
-
       </div>
 
-      {/* Divider */}
-      <hr className="border-gray-700 mb-12" />
+      {/* Bottom Bar */}
+      <div className="border-t border-gray-800">
+        <div className="container mx-auto px-4 lg:px-8 py-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Copyright */}
+            <p className="text-gray-500 text-sm flex items-center gap-1">
+              © {new Date().getFullYear()} 3-3.com. Made with
+              <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+              for mental wellness.
+            </p>
 
-      {/* Bottom Section: Links */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-10 text-center md:text-left">
-        
-        {/* Column 1: PRODUCTS */}
-        <div className="flex flex-col gap-4">
-           <h4 className="font-bold tracking-widest text-sm mb-2">PRODUCTS</h4>
-           <Link to="#" className="text-sm text-gray-300 hover:text-white transition">CUSTOMER CABINET</Link>
-           <Link to="#" className="text-sm text-gray-300 hover:text-white transition">CHECKOUT</Link>
-           <Link to="#" className="text-sm text-gray-300 hover:text-white transition">SHOP</Link>
-           <Link to="#" className="text-sm text-gray-300 hover:text-white transition">CART</Link>
+            {/* Social Links */}
+            <div className="flex items-center gap-4">
+              {socialLinks.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  aria-label={social.label}
+                  className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-primary hover:text-white transition-all"
+                >
+                  <social.icon className="w-5 h-5" />
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
-
-        {/* Column 2: MAIN LINKS */}
-        <div className="flex flex-col gap-4 items-center md:items-start">
-           <h4 className="font-bold tracking-widest text-sm mb-2">MAIN LINKS</h4>
-           <Link to="/" className="text-sm text-gray-300 hover:text-white transition">HOME</Link>
-           <Link to="/about" className="text-sm text-gray-300 hover:text-white transition">ABOUT</Link>
-           <Link to="/services" className="text-sm text-gray-300 hover:text-white transition">SERVICES</Link>
-           <Link to="/resources" className="text-sm text-gray-300 hover:text-white transition">RESOURCES</Link>
-           <Link to="/faqs" className="text-sm text-gray-300 hover:text-white transition">FAQS</Link>
-        </div>
-
-         {/* Column 3: SERVICES */}
-         <div className="flex flex-col gap-4 items-center md:items-end">
-           <h4 className="font-bold tracking-widest text-sm mb-2">SERVICES</h4>
-           <Link to="/services" className="text-sm text-gray-300 hover:text-white transition">SERVICES</Link>
-           <Link to="/team" className="text-sm text-gray-300 hover:text-white transition">THE TEAM</Link>
-           <Link to="/resources" className="text-sm text-gray-300 hover:text-white transition">RESOURCES</Link>
-           <Link to="/contact" className="text-sm text-gray-300 hover:text-white transition">BOOK AN APPOINTMENT</Link>
-        </div>
-
       </div>
-      
-      {/* Optional Copyright (if needed below, though not in the screenshot explicitly, often standard) */}
-      {/* <div className="text-center mt-12 text-gray-500 text-xs">
-         &copy; {currentYear} The 3 Tree. All rights reserved.
-      </div> */}
 
+      {/* Crisis Notice */}
+      <div className="bg-gray-800 border-t border-gray-700">
+        <div className="container mx-auto px-4 lg:px-8 py-4">
+          <p className="text-center text-sm text-gray-400">
+            <strong className="text-yellow-400">Crisis Support:</strong> If you're in immediate danger,
+            please call emergency services or your local crisis hotline.
+            <a href="tel:988" className="text-primary ml-1 hover:underline">
+              National Suicide Prevention Lifeline: 988
+            </a>
+          </p>
+        </div>
+      </div>
     </footer>
   );
 }

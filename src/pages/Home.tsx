@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import Layout from "@/components/layout/Layout";
 import Hero from "@/components/home/Hero";
-import Services from "@/components/home/Services";
+import ServicesCarousel from "@/components/home/ServicesCarousel";
 import WhyChooseUs from "@/components/home/WhyChooseUs";
 import HowItWorks from "@/components/home/HowItWorks";
 import Testimonials from "@/components/home/Testimonials";
@@ -24,7 +24,7 @@ export default function Home() {
       </Helmet>
       <Layout>
         <Hero />
-        <Services />
+        <ServicesCarousel />
         <WhyChooseUs />
         <HowItWorks />
         <Testimonials />

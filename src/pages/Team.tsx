@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Users, ChevronRight, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import BackButton from "@/components/ui/BackButton";
 
 const teamMembers = [
   {
@@ -93,6 +94,11 @@ export default function Team() {
         {/* Hero Section */}
         <section className="relative pt-24 pb-20 bg-[#1E293B] text-white overflow-hidden">
           <div className="container mx-auto px-4 lg:px-8 text-center">
+            {/* Back Button */}
+            <div className="absolute top-6 left-4 lg:left-8">
+              <BackButton to="/" label="Back to Home" className="text-white/80 hover:text-white hover:bg-white/10" />
+            </div>
+
             <div className="max-w-3xl mx-auto">
               {/* Icon */}
               <div className="flex justify-center mb-8">
@@ -123,7 +129,7 @@ export default function Team() {
                 Meet The Team
               </h1>
               <p className="text-lg lg:text-xl text-gray-300 mb-10 leading-relaxed">
-                Our holistic team nurtures mind, body, and emotions through ethical, evidence-based care, 
+                Our holistic team nurtures mind, body, and emotions through ethical, evidence-based care,
                 ensuring privacy, respect, and a safe space for your personal healing journey today.
               </p>
               <Button
@@ -201,7 +207,7 @@ export default function Team() {
             <h2 className="font-serif text-3xl lg:text-4xl text-center text-[#2D2D2D] mb-12">
               Someone To Openup
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
               {pricingPackages.map((pkg, index) => (
                 <div
@@ -210,7 +216,7 @@ export default function Team() {
                 >
                   {/* Image placeholder */}
                   <div className="aspect-[4/3] bg-gradient-to-br from-gray-200 to-gray-300" />
-                  
+
                   {/* Content */}
                   <div className="p-6 bg-white">
                     <h3 className="font-bold text-xl text-center mb-4">{pkg.title}</h3>
@@ -218,7 +224,7 @@ export default function Team() {
                     <p className="text-center text-sm text-gray-600 mb-4">
                       {pkg.pricePerSession} per session
                     </p>
-                    
+
                     <div className="space-y-2 mb-6">
                       {pkg.features.map((feature, i) => (
                         <p key={i} className="text-sm text-center text-gray-700">
@@ -266,9 +272,8 @@ export default function Team() {
                         {faq.question}
                       </span>
                       <Plus
-                        className={`w-5 h-5 text-gray-600 transition-transform flex-shrink-0 ml-4 ${
-                          openFaqIndex === index ? "rotate-45" : ""
-                        }`}
+                        className={`w-5 h-5 text-gray-600 transition-transform flex-shrink-0 ml-4 ${openFaqIndex === index ? "rotate-45" : ""
+                          }`}
                       />
                     </button>
                     {openFaqIndex === index && (

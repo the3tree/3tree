@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import BackButton from "@/components/ui/BackButton";
 
 export default function Contact() {
   const { toast } = useToast();
@@ -28,7 +29,10 @@ export default function Contact() {
         <meta name="description" content="Contact The 3 Tree for therapy inquiries. Book a session or ask questions about our mental health services." />
       </Helmet>
       <Layout>
-        <section className="py-20 lg:py-28 bg-primary text-primary-foreground">
+        <section className="relative py-20 lg:py-28 bg-primary text-primary-foreground">
+          <div className="absolute top-6 left-4 lg:left-8">
+            <BackButton to="/" label="Back to Home" className="text-white/80 hover:text-white hover:bg-white/10" />
+          </div>
           <div className="container mx-auto px-4 lg:px-8 text-center max-w-3xl">
             <p className="text-accent font-sans tracking-widest text-sm mb-4">CONTACT US</p>
             <h1 className="font-serif text-4xl md:text-6xl mb-6">Get in Touch</h1>
