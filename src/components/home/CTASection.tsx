@@ -77,14 +77,14 @@ export default function CTASection() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/booking"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#1a2744] hover:bg-[#0f1a2e] text-white font-semibold rounded-lg shadow-lg shadow-gray-900/10 transition-all group"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-full shadow-lg shadow-slate-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
             >
               Book Your Session
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/assessments"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold rounded-lg border-2 border-gray-200 hover:border-gray-300 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white hover:bg-gray-50 text-slate-900 font-semibold rounded-full border-2 border-slate-200 hover:border-slate-300 hover:-translate-y-1 transition-all duration-300"
             >
               Take a Free Assessment
             </Link>
@@ -96,10 +96,10 @@ export default function CTASection() {
           {/* Phone */}
           <a
             href="tel:+1234567890"
-            className="cta-card flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group"
+            className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-cyan-200/50 hover:-translate-y-1 transition-all duration-300 group"
           >
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Phone className="w-6 h-6 text-primary" />
+            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/20">
+              <Phone className="w-6 h-6 text-white" />
             </div>
             <div>
               <p className="font-semibold text-gray-900">Call Us</p>
@@ -110,10 +110,10 @@ export default function CTASection() {
           {/* Email */}
           <a
             href="mailto:hello@the3tree.com"
-            className="cta-card flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group"
+            className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-cyan-200/50 hover:-translate-y-1 transition-all duration-300 group"
           >
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Mail className="w-6 h-6 text-primary" />
+            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/20">
+              <Mail className="w-6 h-6 text-white" />
             </div>
             <div>
               <p className="font-semibold text-gray-900">Email Us</p>
@@ -122,9 +122,9 @@ export default function CTASection() {
           </a>
 
           {/* Location */}
-          <div className="cta-card flex items-center gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm">
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-              <MapPin className="w-6 h-6 text-primary" />
+          <div className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-cyan-200/50 hover:-translate-y-1 transition-all duration-300 group">
+            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/20">
+              <MapPin className="w-6 h-6 text-white" />
             </div>
             <div>
               <p className="font-semibold text-gray-900">Visit Us</p>

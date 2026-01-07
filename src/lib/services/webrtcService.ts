@@ -41,16 +41,29 @@ export interface VideoSession {
 // ICE Server Configuration
 // ==========================================
 
+// Free STUN servers for initial connectivity
 const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    // Add TURN servers for production (Twilio/Xirsys)
-    // {
-    //     urls: 'turn:your-turn-server.com:443',
-    //     username: 'username',
-    //     credential: 'credential'
-    // }
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    // OpenRelay TURN servers (free, for development)
+    {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    },
+    {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    },
+    {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    }
 ];
 
 // ==========================================
@@ -276,7 +289,7 @@ export class WebRTCService {
 
         try {
             switch (signal.type) {
-                case 'offer':
+                case 'offer': {
                     console.log('Received offer');
                     await this.peerConnection.setRemoteDescription(
                         new RTCSessionDescription(signal.data as RTCSessionDescriptionInit)
@@ -298,6 +311,7 @@ export class WebRTCService {
                     });
                     console.log('Answer sent');
                     break;
+                }
 
                 case 'answer':
                     console.log('Received answer');

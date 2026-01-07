@@ -1,6 +1,7 @@
 /**
  * Booking Service - Complete booking management for 3-3.com Counseling
  * Handles all booking operations with Supabase integration
+ * Enhanced with timezone support, validation, and robust error handling
  */
 
 import { supabase, Booking, Therapist, User } from './supabase';
@@ -16,40 +17,110 @@ export interface ServiceType {
     duration: number; // minutes
     price: number;
     icon: string;
+    category: 'therapy' | 'consultation' | 'group';
+}
+
+export interface SessionPackage {
+    id: string;
+    name: string;
+    sessionCount: number;
+    discountPercent: number;
+    description: string;
+    validDays: number;
 }
 
 export interface TimeSlot {
     time: string;
+    displayTime: string;
     available: boolean;
     period: 'morning' | 'afternoon' | 'evening';
+    iso?: string;
 }
 
-export interface TherapistWithDetails extends Therapist {
+// Extended therapist type for booking service (includes mock data fields)
+export interface TherapistWithDetails {
+    id: string;
+    user_id: string;
+    specialties: string[];
+    credentials: string | string[];
+    bio?: string | null;
+    hourly_rate?: number;
+    availability?: Record<string, string[]>;
+    is_approved?: boolean;
+    is_verified?: boolean;
+    is_active?: boolean;
+    rating?: number;
+    average_rating?: number;
+    total_sessions?: number;
+    total_reviews?: number;
+    session_rate_individual?: number;
+    session_rate_couple?: number;
+    session_rate_family?: number;
+    languages?: string[];
+    years_experience?: number;
+    accepts_video?: boolean;
+    accepts_audio?: boolean;
+    accepts_chat?: boolean;
+    accepts_in_person?: boolean;
+    location?: string;
     user: User;
 }
 
 export interface BookingDetails {
     id: string;
-    patient_id: string;
+    client_id: string;
     therapist_id: string;
-    service_type: string;
+    service_category_id?: string | null;
+    package_id?: string | null;
+    session_mode: 'video' | 'audio' | 'chat' | 'in_person';
     scheduled_at: string;
     duration_minutes: number;
-    status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-    meeting_link?: string;
-    notes?: string;
+    status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show' | 'rescheduled';
+    meeting_url?: string | null;
+    room_id?: string | null;
+    notes_client?: string | null;
+    notes_therapist?: string | null;
+    client_timezone?: string | null;
+    therapist_timezone?: string | null;
+    cancellation_reason?: string | null;
+    cancelled_by?: string | null;
+    cancelled_at?: string | null;
+    rescheduled_from?: string | null;
+    reminder_sent?: boolean;
+    intake_form_completed?: boolean;
+    amount?: number;
+    currency?: string;
+    payment_status?: 'pending' | 'paid' | 'refunded' | 'failed';
     created_at: string;
+    updated_at?: string;
     therapist?: TherapistWithDetails;
-    patient?: User;
+    client?: User;
 }
 
 export interface CreateBookingData {
-    patient_id: string;
+    client_id: string;
     therapist_id: string;
-    service_type: string;
+    service_category_id?: string | null;
+    package_id?: string | null;
+    session_mode?: 'video' | 'audio' | 'chat' | 'in_person';
     scheduled_at: string;
     duration_minutes: number;
-    notes?: string;
+    notes_client?: string | null;
+    client_timezone?: string | null;
+    amount?: number;
+    currency?: string;
+}
+
+export interface RescheduleData {
+    booking_id: string;
+    new_scheduled_at: string;
+    reason?: string;
+}
+
+export interface CancellationData {
+    booking_id: string;
+    reason: string;
+    cancelled_by: 'client' | 'therapist' | 'admin';
 }
 
 // ============================================
@@ -62,32 +133,36 @@ export const serviceTypes: ServiceType[] = [
         name: 'Individual Therapy',
         description: 'One-on-one sessions focused on your personal growth and mental well-being',
         duration: 50,
-        price: 75,
-        icon: 'User'
+        price: 3500,
+        icon: 'User',
+        category: 'therapy'
     },
     {
         id: 'couple',
         name: 'Couples Therapy',
         description: 'Strengthen your relationship with guided therapeutic conversations',
         duration: 60,
-        price: 95,
-        icon: 'Heart'
+        price: 5000,
+        icon: 'Heart',
+        category: 'therapy'
     },
     {
         id: 'family',
         name: 'Family Therapy',
         description: 'Improve family dynamics and communication patterns',
         duration: 75,
-        price: 120,
-        icon: 'Users'
+        price: 6500,
+        icon: 'Users',
+        category: 'therapy'
     },
     {
         id: 'group',
         name: 'Group Session',
         description: 'Connect with others facing similar challenges in a supportive environment',
         duration: 90,
-        price: 45,
-        icon: 'Users'
+        price: 2500,
+        icon: 'Users',
+        category: 'group'
     },
     {
         id: 'consultation',
@@ -95,181 +170,92 @@ export const serviceTypes: ServiceType[] = [
         description: 'Free introductory session to discuss your needs and find the right approach',
         duration: 15,
         price: 0,
-        icon: 'MessageCircle'
+        icon: 'MessageCircle',
+        category: 'consultation'
+    },
+    {
+        id: 'crisis',
+        name: 'Crisis Support',
+        description: 'Immediate support session for urgent mental health concerns',
+        duration: 30,
+        price: 2000,
+        icon: 'AlertCircle',
+        category: 'therapy'
+    }
+];
+
+// Session Packages with discounts
+export const sessionPackages: SessionPackage[] = [
+    {
+        id: 'single',
+        name: 'Single Session',
+        sessionCount: 1,
+        discountPercent: 0,
+        description: 'Pay per session',
+        validDays: 30
+    },
+    {
+        id: 'package-4',
+        name: '4 Session Package',
+        sessionCount: 4,
+        discountPercent: 10,
+        description: 'Save 10% with monthly package',
+        validDays: 60
+    },
+    {
+        id: 'package-8',
+        name: '8 Session Package',
+        sessionCount: 8,
+        discountPercent: 15,
+        description: 'Save 15% with bi-monthly package',
+        validDays: 90
+    },
+    {
+        id: 'package-12',
+        name: '12 Session Package',
+        sessionCount: 12,
+        discountPercent: 20,
+        description: 'Save 20% with quarterly package',
+        validDays: 120
     }
 ];
 
 // ============================================
-// Mock Therapists Data (fallback when Supabase not configured)
+// Mock Therapists Data - REMOVED FOR PRODUCTION
+// All therapist data now comes from the database
 // ============================================
 
-const mockTherapists: TherapistWithDetails[] = [
-    {
-        id: 't1',
-        user_id: 'u1',
-        specialties: ['Anxiety', 'Depression', 'Stress Management'],
-        credentials: 'Ph.D. Clinical Psychology',
-        bio: 'With over 15 years of experience, I specialize in helping individuals overcome anxiety and depression through evidence-based approaches.',
-        hourly_rate: 75,
-        availability: {
-            'Monday': ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
-            'Tuesday': ['09:00', '10:00', '14:00', '15:00'],
-            'Wednesday': ['10:00', '11:00', '14:00', '15:00', '16:00', '17:00'],
-            'Thursday': ['09:00', '10:00', '11:00', '14:00'],
-            'Friday': ['09:00', '10:00', '11:00', '14:00', '15:00']
-        },
-        is_approved: true,
-        rating: 4.9,
-        total_sessions: 1250,
-        user: {
-            id: 'u1',
-            email: 'sarah.johnson@3-3.com',
-            full_name: 'Dr. Sarah Johnson',
-            avatar_url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop&crop=face',
-            role: 'therapist',
-            created_at: '2023-01-15',
-            updated_at: '2024-01-01'
-        }
-    },
-    {
-        id: 't2',
-        user_id: 'u2',
-        specialties: ['CBT', 'Trauma', 'PTSD'],
-        credentials: 'Psy.D., Licensed Psychologist',
-        bio: 'I am passionate about helping trauma survivors reclaim their lives using cognitive-behavioral techniques and EMDR therapy.',
-        hourly_rate: 85,
-        availability: {
-            'Monday': ['10:00', '11:00', '13:00', '14:00', '15:00'],
-            'Tuesday': ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
-            'Wednesday': ['09:00', '10:00', '14:00', '15:00'],
-            'Thursday': ['10:00', '11:00', '13:00', '14:00', '15:00', '16:00'],
-            'Friday': ['09:00', '10:00', '11:00']
-        },
-        is_approved: true,
-        rating: 4.8,
-        total_sessions: 980,
-        user: {
-            id: 'u2',
-            email: 'michael.chen@3-3.com',
-            full_name: 'Dr. Michael Chen',
-            avatar_url: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face',
-            role: 'therapist',
-            created_at: '2023-03-20',
-            updated_at: '2024-01-01'
-        }
-    },
-    {
-        id: 't3',
-        user_id: 'u3',
-        specialties: ['Relationship Issues', 'Marriage Counseling', 'Communication'],
-        credentials: 'LMFT, Certified Gottman Therapist',
-        bio: 'Helping couples build stronger, more fulfilling relationships through evidence-based methods and compassionate guidance.',
-        hourly_rate: 90,
-        availability: {
-            'Monday': ['14:00', '15:00', '16:00', '17:00'],
-            'Tuesday': ['10:00', '11:00', '14:00', '15:00', '16:00'],
-            'Wednesday': ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'],
-            'Thursday': ['14:00', '15:00', '16:00'],
-            'Friday': ['10:00', '11:00', '14:00', '15:00']
-        },
-        is_approved: true,
-        rating: 4.9,
-        total_sessions: 856,
-        user: {
-            id: 'u3',
-            email: 'emily.wright@3-3.com',
-            full_name: 'Dr. Emily Wright',
-            avatar_url: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=200&h=200&fit=crop&crop=face',
-            role: 'therapist',
-            created_at: '2023-02-10',
-            updated_at: '2024-01-01'
-        }
-    },
-    {
-        id: 't4',
-        user_id: 'u4',
-        specialties: ['Child Psychology', 'ADHD', 'Learning Disabilities'],
-        credentials: 'Ph.D., Board Certified Child Psychologist',
-        bio: 'Dedicated to helping children and adolescents overcome challenges and reach their full potential through play therapy and family involvement.',
-        hourly_rate: 80,
-        availability: {
-            'Monday': ['09:00', '10:00', '11:00', '14:00', '15:00'],
-            'Tuesday': ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
-            'Wednesday': ['10:00', '11:00', '14:00', '15:00'],
-            'Thursday': ['09:00', '10:00', '11:00', '14:00', '15:00'],
-            'Friday': ['09:00', '10:00', '11:00']
-        },
-        is_approved: true,
-        rating: 4.7,
-        total_sessions: 720,
-        user: {
-            id: 'u4',
-            email: 'david.miller@3-3.com',
-            full_name: 'Dr. David Miller',
-            avatar_url: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=200&h=200&fit=crop&crop=face',
-            role: 'therapist',
-            created_at: '2023-04-05',
-            updated_at: '2024-01-01'
-        }
-    },
-    {
-        id: 't5',
-        user_id: 'u5',
-        specialties: ['Mindfulness', 'Stress', 'Work-Life Balance'],
-        credentials: 'LCSW, Certified Mindfulness Practitioner',
-        bio: 'I integrate mindfulness-based approaches with traditional therapy to help clients find balance, reduce stress, and cultivate inner peace.',
-        hourly_rate: 70,
-        availability: {
-            'Monday': ['08:00', '09:00', '10:00', '17:00', '18:00'],
-            'Tuesday': ['08:00', '09:00', '17:00', '18:00'],
-            'Wednesday': ['08:00', '09:00', '10:00', '17:00', '18:00', '19:00'],
-            'Thursday': ['08:00', '09:00', '17:00', '18:00'],
-            'Friday': ['08:00', '09:00', '10:00', '14:00', '15:00']
-        },
-        is_approved: true,
-        rating: 4.8,
-        total_sessions: 645,
-        user: {
-            id: 'u5',
-            email: 'lisa.patel@3-3.com',
-            full_name: 'Lisa Patel, LCSW',
-            avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&h=200&fit=crop&crop=face',
-            role: 'therapist',
-            created_at: '2023-05-12',
-            updated_at: '2024-01-01'
-        }
-    },
-    {
-        id: 't6',
-        user_id: 'u6',
-        specialties: ['Addiction', 'Recovery', 'Substance Abuse'],
-        credentials: 'CADC, Licensed Addiction Counselor',
-        bio: 'Having walked the path of recovery myself, I bring both professional expertise and personal understanding to help clients overcome addiction.',
-        hourly_rate: 75,
-        availability: {
-            'Monday': ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
-            'Tuesday': ['09:00', '10:00', '11:00', '14:00', '15:00'],
-            'Wednesday': ['09:00', '10:00', '14:00', '15:00', '16:00'],
-            'Thursday': ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'],
-            'Friday': ['09:00', '10:00', '11:00']
-        },
-        is_approved: true,
-        rating: 4.9,
-        total_sessions: 890,
-        user: {
-            id: 'u6',
-            email: 'james.wilson@3-3.com',
-            full_name: 'James Wilson, CADC',
-            avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
-            role: 'therapist',
-            created_at: '2023-06-01',
-            updated_at: '2024-01-01'
-        }
-    }
-];
+// Mock bookings storage (will be removed once database is fully integrated)
+const mockBookings: BookingDetails[] = [];
 
-// Mock bookings storage
-let mockBookings: BookingDetails[] = [];
+// ============================================
+// Timezone Helpers
+// ============================================
+
+/**
+ * Get user's timezone
+ */
+export function getUserTimezone(): string {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/**
+ * Convert time to user's timezone
+ */
+export function convertToUserTimezone(utcDate: string | Date, timezone?: string): Date {
+    const tz = timezone || getUserTimezone();
+    const date = new Date(utcDate);
+    return new Date(date.toLocaleString('en-US', { timeZone: tz }));
+}
+
+/**
+ * Format date for display in user's timezone
+ */
+export function formatDateInTimezone(date: Date | string, timezone?: string, options?: Intl.DateTimeFormatOptions): string {
+    const tz = timezone || getUserTimezone();
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleString('en-US', { timeZone: tz, ...options });
+}
 
 // ============================================
 // Helper Functions
@@ -332,36 +318,48 @@ function generateId(): string {
 // ============================================
 
 /**
- * Fetch all approved therapists
+ * Fetch all approved therapists from database
+ * NO MOCK DATA - Uses only real Supabase data
  */
 export async function fetchTherapists(): Promise<TherapistWithDetails[]> {
     try {
+        console.log('🔍 Fetching therapists from database...');
+
         const { data, error } = await supabase
             .from('therapists')
             .select(`
                 *,
                 user:users(*)
             `)
-            .eq('is_approved', true);
+            .eq('is_approved', true)
+            .eq('is_active', true);
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Error fetching therapists:', error);
+            throw error;
+        }
 
         if (data && data.length > 0) {
+            console.log(`✅ Found ${data.length} therapists in database`);
             return data as TherapistWithDetails[];
         }
-    } catch (error) {
-        console.log('Using mock therapist data');
-    }
 
-    // Return mock data as fallback
-    return mockTherapists;
+        console.warn('⚠️ No therapists found in database');
+        return [];
+    } catch (error) {
+        console.error('❌ Failed to fetch therapists from database:', error);
+        // Return empty array instead of mock data
+        return [];
+    }
 }
 
 /**
- * Fetch single therapist by ID
+ * Fetch single therapist by ID from database only
  */
 export async function fetchTherapistById(therapistId: string): Promise<TherapistWithDetails | null> {
     try {
+        console.log(`🔍 Fetching therapist ${therapistId} from database...`);
+
         const { data, error } = await supabase
             .from('therapists')
             .select(`
@@ -369,28 +367,45 @@ export async function fetchTherapistById(therapistId: string): Promise<Therapist
                 user:users(*)
             `)
             .eq('id', therapistId)
+            .eq('is_active', true)
             .single();
 
-        if (error) throw error;
-        return data as TherapistWithDetails;
-    } catch (error) {
-        console.log('Using mock therapist data');
-    }
+        if (error) {
+            console.error('❌ Error fetching therapist:', error);
+            throw error;
+        }
 
-    // Return from mock data
-    return mockTherapists.find(t => t.id === therapistId) || null;
+        if (data) {
+            console.log(`✅ Found therapist: ${data.user?.full_name}`);
+            return data as TherapistWithDetails;
+        }
+
+        console.warn(`⚠️ Therapist ${therapistId} not found`);
+        return null;
+    } catch (error) {
+        console.error('❌ Failed to fetch therapist from database:', error);
+        return null;
+    }
 }
 
 /**
  * Get available time slots for a therapist on a specific date
+ * Enhanced with better timezone handling and conflict detection
  */
 export async function getAvailableSlots(
     therapistId: string,
-    date: Date
+    date: Date,
+    serviceDuration: number = 50
 ): Promise<TimeSlot[]> {
     // Get therapist availability
     const therapist = await fetchTherapistById(therapistId);
     if (!therapist) return [];
+
+    // Check if therapist has availability data
+    if (!therapist.availability || typeof therapist.availability !== 'object') {
+        console.warn('Therapist has no availability configured');
+        return [];
+    }
 
     const dayName = getDayName(date);
     const availableTimes = therapist.availability[dayName] || [];
@@ -399,82 +414,119 @@ export async function getAvailableSlots(
 
     // Get existing bookings for this date
     const dateStr = date.toISOString().split('T')[0];
-    let bookedTimes: string[] = [];
+    let bookedSlots: { start: Date; end: Date }[] = [];
 
     try {
         const { data, error } = await supabase
             .from('bookings')
-            .select('scheduled_at')
+            .select('scheduled_at, duration_minutes')
             .eq('therapist_id', therapistId)
             .gte('scheduled_at', `${dateStr}T00:00:00`)
             .lt('scheduled_at', `${dateStr}T23:59:59`)
-            .neq('status', 'cancelled');
+            .not('status', 'in', '("cancelled","no_show")');
 
         if (!error && data) {
-            bookedTimes = data.map(b => {
-                const time = new Date(b.scheduled_at);
-                return `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
+            bookedSlots = data.map(b => {
+                const start = new Date(b.scheduled_at);
+                const end = new Date(start.getTime() + (b.duration_minutes || 50) * 60 * 1000);
+                return { start, end };
             });
         }
     } catch (error) {
-        // Check mock bookings
-        bookedTimes = mockBookings
-            .filter(b =>
-                b.therapist_id === therapistId &&
-                b.scheduled_at.startsWith(dateStr) &&
-                b.status !== 'cancelled'
-            )
-            .map(b => {
-                const time = new Date(b.scheduled_at);
-                return `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
-            });
+        console.error('Error fetching booked slots:', error);
     }
 
     // If today, filter out past times
     const now = new Date();
     const isDateToday = isToday(date);
+    const minBookingBuffer = 60 * 60 * 1000; // 1 hour buffer for same-day bookings
 
-    // Generate time slots
-    return availableTimes
-        .filter(time => {
-            if (isDateToday) {
-                const [hours, minutes] = time.split(':').map(Number);
-                const slotTime = new Date(date);
-                slotTime.setHours(hours, minutes, 0, 0);
-                // Only show slots at least 1 hour in the future
-                return slotTime.getTime() > now.getTime() + 60 * 60 * 1000;
-            }
-            return true;
-        })
-        .map(time => ({
+    // Generate time slots with conflict checking
+    const slots: TimeSlot[] = [];
+    
+    for (const time of availableTimes) {
+        const [hours, minutes] = time.split(':').map(Number);
+        const slotStart = new Date(date);
+        slotStart.setHours(hours, minutes, 0, 0);
+        const slotEnd = new Date(slotStart.getTime() + serviceDuration * 60 * 1000);
+
+        // Skip if slot is in the past (with buffer for today)
+        if (isDateToday && slotStart.getTime() <= now.getTime() + minBookingBuffer) {
+            continue;
+        }
+
+        // Check for conflicts with existing bookings
+        const hasConflict = bookedSlots.some(booked => {
+            return (slotStart < booked.end && slotEnd > booked.start);
+        });
+
+        slots.push({
             time: formatTime(time),
-            available: !bookedTimes.includes(time),
-            period: getTimePeriod(time)
-        }));
+            displayTime: formatTime(time),
+            available: !hasConflict,
+            period: getTimePeriod(time),
+            iso: slotStart.toISOString()
+        });
+    }
+
+    return slots.sort((a, b) => {
+        const timeA = a.iso ? new Date(a.iso).getTime() : 0;
+        const timeB = b.iso ? new Date(b.iso).getTime() : 0;
+        return timeA - timeB;
+    });
 }
 
 /**
- * Get available dates for a therapist (next 30 days)
+ * Get available dates for a therapist (next 60 days)
+ * Checks both therapist availability and existing bookings
  */
 export async function getAvailableDates(therapistId: string): Promise<Date[]> {
     const therapist = await fetchTherapistById(therapistId);
-    if (!therapist) return [];
+    if (!therapist || !therapist.availability) return [];
 
     const availableDays = Object.keys(therapist.availability);
     const dates: Date[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Check for blocked dates
+    let blockedDates: Set<string> = new Set();
+    try {
+        const { data } = await supabase
+            .from('therapist_blocked_times')
+            .select('start_datetime, end_datetime')
+            .eq('therapist_id', therapistId)
+            .gte('end_datetime', today.toISOString());
+
+        if (data) {
+            data.forEach(blocked => {
+                const start = new Date(blocked.start_datetime);
+                const end = new Date(blocked.end_datetime);
+                // Add all dates in the blocked range
+                const current = new Date(start);
+                while (current <= end) {
+                    blockedDates.add(current.toISOString().split('T')[0]);
+                    current.setDate(current.getDate() + 1);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching blocked times:', error);
+    }
+
     for (let i = 0; i < 60; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
         const dayName = getDayName(date);
 
+        // Skip blocked dates
+        if (blockedDates.has(dateStr)) continue;
+
         if (availableDays.includes(dayName)) {
-            // Check if there are any available slots for this day
             const availability = therapist.availability[dayName];
             if (availability && availability.length > 0) {
-                dates.push(date);
+                dates.push(new Date(date));
             }
         }
     }
@@ -483,57 +535,159 @@ export async function getAvailableDates(therapistId: string): Promise<Date[]> {
 }
 
 /**
- * Create a new booking
+ * Create a new booking with comprehensive validation
  */
 export async function createBooking(data: CreateBookingData): Promise<{ booking: BookingDetails | null; error: string | null }> {
-    // Validate data
-    if (!data.patient_id || !data.therapist_id || !data.service_type || !data.scheduled_at) {
-        return { booking: null, error: 'Missing required booking information' };
+    // Validate required fields
+    if (!data.client_id) {
+        return { booking: null, error: 'Please log in to book an appointment' };
+    }
+    if (!data.therapist_id) {
+        return { booking: null, error: 'Please select a therapist' };
+    }
+    if (!data.scheduled_at) {
+        return { booking: null, error: 'Please select a date and time' };
     }
 
-    // Check if slot is still available
+    // Validate scheduled time is in the future (with buffer)
     const scheduledDate = new Date(data.scheduled_at);
-    const slots = await getAvailableSlots(data.therapist_id, scheduledDate);
+    const now = new Date();
+    const minBookingTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 min buffer
+    
+    if (scheduledDate <= minBookingTime) {
+        return { booking: null, error: 'Please select a time at least 30 minutes from now' };
+    }
+
+    // Check if slot is still available (with double-check to prevent race conditions)
+    const slots = await getAvailableSlots(data.therapist_id, scheduledDate, data.duration_minutes);
     const timeStr = formatTime(
         `${scheduledDate.getHours().toString().padStart(2, '0')}:${scheduledDate.getMinutes().toString().padStart(2, '0')}`
     );
 
     const slot = slots.find(s => s.time === timeStr);
     if (slot && !slot.available) {
-        return { booking: null, error: 'This time slot is no longer available' };
+        return { booking: null, error: 'This time slot was just booked. Please select another time.' };
     }
 
-    // Generate meeting link
-    const meetingLink = `https://meet.3-3.com/session/${generateId()}`;
+    // Generate unique room ID for video calls
+    const roomId = `session-${data.therapist_id.substring(0, 8)}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const meetingUrl = `${baseUrl}/call/${roomId}`;
+
+    // Calculate amount based on service
+    const service = serviceTypes.find(s => s.id === data.service_category_id);
+    const amount = data.amount || service?.price || 3500;
 
     try {
+        // Insert booking with transaction-like checks
         const { data: booking, error } = await supabase
             .from('bookings')
             .insert({
-                ...data,
-                status: 'confirmed',
-                meeting_link: meetingLink
+                client_id: data.client_id,
+                therapist_id: data.therapist_id,
+                service_category_id: data.service_category_id || null,
+                package_id: data.package_id || null,
+                session_mode: data.session_mode || 'video',
+                scheduled_at: data.scheduled_at,
+                duration_minutes: data.duration_minutes || 50,
+                status: 'confirmed', // Auto-confirm for now
+                meeting_url: meetingUrl,
+                room_id: roomId,
+                notes_client: data.notes_client || null,
+                client_timezone: data.client_timezone || getUserTimezone(),
+                amount: amount,
+                currency: data.currency || 'INR',
+                payment_status: amount === 0 ? 'paid' : 'pending',
+                intake_form_completed: false,
+                reminder_sent: false,
             })
-            .select()
+            .select(`
+                *,
+                therapist:therapists(
+                    *,
+                    user:users(*)
+                ),
+                client:users!client_id(*)
+            `)
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Booking creation error:', error);
+            
+            // Check for specific error types
+            if (error.code === '23505') {
+                return { booking: null, error: 'This time slot was just booked. Please select another time.' };
+            }
+            throw error;
+        }
+
+        // Create video call session entry for video/audio sessions
+        if (data.session_mode === 'video' || data.session_mode === 'audio' || !data.session_mode) {
+            try {
+                // Get therapist's user_id for the session
+                const { data: therapistData } = await supabase
+                    .from('therapists')
+                    .select('user_id')
+                    .eq('id', data.therapist_id)
+                    .single();
+
+                await supabase
+                    .from('video_call_sessions')
+                    .insert({
+                        room_id: roomId,
+                        booking_id: booking.id,
+                        initiator_id: data.client_id,
+                        receiver_id: therapistData?.user_id || data.therapist_id,
+                        status: 'waiting',
+                        session_mode: data.session_mode || 'video',
+                    });
+            } catch (sessionError) {
+                console.warn('Failed to create video session (non-critical):', sessionError);
+            }
+        }
+
+        // Create or get conversation for messaging
+        try {
+            const { data: therapistData } = await supabase
+                .from('therapists')
+                .select('user_id')
+                .eq('id', data.therapist_id)
+                .single();
+
+            const therapistUserId = therapistData?.user_id || data.therapist_id;
+            const [p1, p2] = [data.client_id, therapistUserId].sort();
+
+            const { data: existingConv } = await supabase
+                .from('conversations')
+                .select('id')
+                .eq('participant_1_id', p1)
+                .eq('participant_2_id', p2)
+                .single();
+
+            if (!existingConv) {
+                await supabase
+                    .from('conversations')
+                    .insert({
+                        booking_id: booking.id,
+                        participant_1_id: p1,
+                        participant_2_id: p2,
+                        is_active: true,
+                    });
+            } else {
+                await supabase
+                    .from('conversations')
+                    .update({ booking_id: booking.id })
+                    .eq('id', existingConv.id);
+            }
+        } catch (convError) {
+            console.warn('Failed to create conversation (non-critical):', convError);
+        }
+
         return { booking: booking as BookingDetails, error: null };
-    } catch (error) {
-        console.log('Using mock booking storage');
+    } catch (error: any) {
+        console.error('Error creating booking:', error);
+        return { booking: null, error: error.message || 'Failed to create booking. Please try again.' };
     }
-
-    // Create mock booking
-    const mockBooking: BookingDetails = {
-        id: generateId(),
-        ...data,
-        status: 'confirmed',
-        meeting_link: meetingLink,
-        created_at: new Date().toISOString()
-    };
-
-    mockBookings.push(mockBooking);
-    return { booking: mockBooking, error: null };
 }
 
 /**
@@ -548,19 +702,20 @@ export async function getUserBookings(userId: string): Promise<BookingDetails[]>
                 therapist:therapists(
                     *,
                     user:users(*)
-                )
+                ),
+                client:users!client_id(*)
             `)
-            .eq('patient_id', userId)
+            .eq('client_id', userId)
             .order('scheduled_at', { ascending: false });
 
         if (error) throw error;
         if (data) return data as BookingDetails[];
     } catch (error) {
-        console.log('Using mock bookings data');
+        console.error('Error fetching user bookings:', error);
     }
 
-    // Return mock bookings for user
-    return mockBookings.filter(b => b.patient_id === userId);
+    // Return empty array if no bookings found
+    return [];
 }
 
 /**
@@ -572,7 +727,7 @@ export async function getTherapistBookings(therapistId: string): Promise<Booking
             .from('bookings')
             .select(`
                 *,
-                patient:users!patient_id(*)
+                client:users!client_id(*)
             `)
             .eq('therapist_id', therapistId)
             .order('scheduled_at', { ascending: true });
@@ -580,10 +735,10 @@ export async function getTherapistBookings(therapistId: string): Promise<Booking
         if (error) throw error;
         if (data) return data as BookingDetails[];
     } catch (error) {
-        console.log('Using mock bookings data');
+        console.error('Error fetching therapist bookings:', error);
     }
 
-    return mockBookings.filter(b => b.therapist_id === therapistId);
+    return [];
 }
 
 /**
@@ -600,9 +755,10 @@ export async function getUpcomingBookings(userId: string): Promise<BookingDetail
                 therapist:therapists(
                     *,
                     user:users(*)
-                )
+                ),
+                client:users!client_id(*)
             `)
-            .eq('patient_id', userId)
+            .eq('client_id', userId)
             .gte('scheduled_at', now)
             .in('status', ['pending', 'confirmed'])
             .order('scheduled_at', { ascending: true })
@@ -611,72 +767,193 @@ export async function getUpcomingBookings(userId: string): Promise<BookingDetail
         if (error) throw error;
         if (data) return data as BookingDetails[];
     } catch (error) {
-        console.log('Using mock bookings data');
+        console.error('Error fetching upcoming bookings:', error);
     }
 
-    return mockBookings
-        .filter(b =>
-            b.patient_id === userId &&
-            new Date(b.scheduled_at) >= new Date() &&
-            ['pending', 'confirmed'].includes(b.status)
-        )
-        .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-        .slice(0, 5);
+    return [];
 }
 
 /**
- * Cancel a booking
+ * Cancel a booking with reason tracking
  */
-export async function cancelBooking(bookingId: string): Promise<{ success: boolean; error: string | null }> {
+export async function cancelBooking(
+    bookingId: string, 
+    reason?: string,
+    cancelledBy: 'client' | 'therapist' | 'admin' = 'client'
+): Promise<{ success: boolean; error: string | null; refundEligible?: boolean }> {
     try {
+        // Get booking to check cancellation policy
+        const { data: booking } = await supabase
+            .from('bookings')
+            .select('scheduled_at, status, amount, payment_status')
+            .eq('id', bookingId)
+            .single();
+
+        if (!booking) {
+            return { success: false, error: 'Booking not found' };
+        }
+
+        if (booking.status === 'cancelled') {
+            return { success: false, error: 'Booking is already cancelled' };
+        }
+
+        if (booking.status === 'completed') {
+            return { success: false, error: 'Cannot cancel a completed session' };
+        }
+
+        // Check cancellation policy (24 hours notice for full refund)
+        const scheduledTime = new Date(booking.scheduled_at).getTime();
+        const now = Date.now();
+        const hoursUntilSession = (scheduledTime - now) / (1000 * 60 * 60);
+        const refundEligible = hoursUntilSession >= 24;
+
         const { error } = await supabase
             .from('bookings')
-            .update({ status: 'cancelled' })
+            .update({ 
+                status: 'cancelled',
+                cancellation_reason: reason || null,
+                cancelled_by: cancelledBy,
+                cancelled_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
             .eq('id', bookingId);
 
         if (error) throw error;
-        return { success: true, error: null };
-    } catch (error) {
-        console.log('Using mock booking cancellation');
-    }
 
-    // Update mock booking
-    const booking = mockBookings.find(b => b.id === bookingId);
-    if (booking) {
-        booking.status = 'cancelled';
-        return { success: true, error: null };
-    }
+        // Update video session if exists
+        await supabase
+            .from('video_call_sessions')
+            .update({ status: 'ended' })
+            .eq('booking_id', bookingId);
 
-    return { success: false, error: 'Booking not found' };
+        return { success: true, error: null, refundEligible };
+    } catch (error: any) {
+        console.error('Error cancelling booking:', error);
+        return { success: false, error: error.message || 'Failed to cancel booking' };
+    }
 }
 
 /**
- * Reschedule a booking
+ * Reschedule a booking to a new time
  */
 export async function rescheduleBooking(
     bookingId: string,
-    newScheduledAt: string
-): Promise<{ success: boolean; error: string | null }> {
+    newScheduledAt: string,
+    reason?: string
+): Promise<{ success: boolean; error: string | null; booking?: BookingDetails }> {
+    try {
+        // Get existing booking
+        const { data: existingBooking } = await supabase
+            .from('bookings')
+            .select('*, therapist_id, duration_minutes, status')
+            .eq('id', bookingId)
+            .single();
+
+        if (!existingBooking) {
+            return { success: false, error: 'Booking not found' };
+        }
+
+        if (existingBooking.status === 'cancelled' || existingBooking.status === 'completed') {
+            return { success: false, error: 'Cannot reschedule this booking' };
+        }
+
+        // Validate new time
+        const newDate = new Date(newScheduledAt);
+        const now = new Date();
+        if (newDate <= now) {
+            return { success: false, error: 'Please select a future date and time' };
+        }
+
+        // Check if new slot is available
+        const slots = await getAvailableSlots(existingBooking.therapist_id, newDate, existingBooking.duration_minutes);
+        const timeStr = formatTime(
+            `${newDate.getHours().toString().padStart(2, '0')}:${newDate.getMinutes().toString().padStart(2, '0')}`
+        );
+        const slot = slots.find(s => s.time === timeStr);
+        
+        if (slot && !slot.available) {
+            return { success: false, error: 'This time slot is not available' };
+        }
+
+        // Update booking
+        const { data: updatedBooking, error } = await supabase
+            .from('bookings')
+            .update({
+                scheduled_at: newScheduledAt,
+                status: 'confirmed',
+                rescheduled_from: existingBooking.scheduled_at,
+                notes_client: reason ? `Rescheduled: ${reason}` : existingBooking.notes_client,
+                reminder_sent: false,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', bookingId)
+            .select(`
+                *,
+                therapist:therapists(*, user:users(*)),
+                client:users!client_id(*)
+            `)
+            .single();
+
+        if (error) throw error;
+
+        return { success: true, error: null, booking: updatedBooking as BookingDetails };
+    } catch (error: any) {
+        console.error('Error rescheduling booking:', error);
+        return { success: false, error: error.message || 'Failed to reschedule booking' };
+    }
+}
+
+/**
+ * Mark a booking as completed
+ */
+export async function completeBooking(bookingId: string): Promise<{ success: boolean; error: string | null }> {
     try {
         const { error } = await supabase
             .from('bookings')
-            .update({ scheduled_at: newScheduledAt })
+            .update({ 
+                status: 'completed',
+                updated_at: new Date().toISOString()
+            })
             .eq('id', bookingId);
 
         if (error) throw error;
+
+        // Update video session
+        await supabase
+            .from('video_call_sessions')
+            .update({ 
+                status: 'ended',
+                ended_at: new Date().toISOString()
+            })
+            .eq('booking_id', bookingId);
+
         return { success: true, error: null };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Get booking by ID with full details
+ */
+export async function getBookingById(bookingId: string): Promise<BookingDetails | null> {
+    try {
+        const { data, error } = await supabase
+            .from('bookings')
+            .select(`
+                *,
+                therapist:therapists(*, user:users(*)),
+                client:users!client_id(*)
+            `)
+            .eq('id', bookingId)
+            .single();
+
+        if (error) throw error;
+        return data as BookingDetails;
     } catch (error) {
-        console.log('Using mock booking reschedule');
+        console.error('Error fetching booking:', error);
+        return null;
     }
-
-    // Update mock booking
-    const booking = mockBookings.find(b => b.id === bookingId);
-    if (booking) {
-        booking.scheduled_at = newScheduledAt;
-        return { success: true, error: null };
-    }
-
-    return { success: false, error: 'Booking not found' };
 }
 
 /**
@@ -691,19 +968,19 @@ export async function getBookingStats(userId?: string): Promise<{
     const now = new Date().toISOString();
 
     try {
-        let query = supabase.from('bookings').select('status, scheduled_at');
+        let query = supabase.from('bookings').select('status, scheduled_at', { count: 'exact' });
 
         if (userId) {
-            query = query.eq('patient_id', userId);
+            query = query.eq('client_id', userId);
         }
 
-        const { data, error } = await query;
+        const { data, error, count } = await query;
 
         if (error) throw error;
 
         if (data) {
             return {
-                total: data.length,
+                total: count || 0,
                 completed: data.filter(b => b.status === 'completed').length,
                 upcoming: data.filter(b =>
                     ['pending', 'confirmed'].includes(b.status) &&
@@ -713,36 +990,111 @@ export async function getBookingStats(userId?: string): Promise<{
             };
         }
     } catch (error) {
-        console.log('Using mock booking stats');
+        console.error('Error fetching booking stats:', error);
     }
 
-    // Calculate from mock bookings
-    const bookings = userId
-        ? mockBookings.filter(b => b.patient_id === userId)
-        : mockBookings;
-
     return {
-        total: bookings.length,
-        completed: bookings.filter(b => b.status === 'completed').length,
-        upcoming: bookings.filter(b =>
-            ['pending', 'confirmed'].includes(b.status) &&
-            new Date(b.scheduled_at) >= new Date()
-        ).length,
-        cancelled: bookings.filter(b => b.status === 'cancelled').length
+        total: 0,
+        completed: 0,
+        upcoming: 0,
+        cancelled: 0
     };
 }
 
+/**
+ * Get therapist booking statistics
+ */
+export async function getTherapistBookingStats(therapistId: string): Promise<{
+    total: number;
+    completed: number;
+    upcoming: number;
+    cancelled: number;
+    todaySessions: number;
+    weekSessions: number;
+    revenue: number;
+}> {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    try {
+        const { data, error, count } = await supabase
+            .from('bookings')
+            .select('status, scheduled_at, amount', { count: 'exact' })
+            .eq('therapist_id', therapistId);
+
+        if (error) throw error;
+
+        if (data) {
+            const completed = data.filter(b => b.status === 'completed');
+            const todaySessions = data.filter(b => 
+                b.scheduled_at >= todayStart && b.scheduled_at < todayEnd && 
+                ['pending', 'confirmed'].includes(b.status)
+            );
+            const weekSessions = data.filter(b => 
+                b.scheduled_at >= weekStart && 
+                ['pending', 'confirmed', 'completed'].includes(b.status)
+            );
+
+            return {
+                total: count || 0,
+                completed: completed.length,
+                upcoming: data.filter(b =>
+                    ['pending', 'confirmed'].includes(b.status) &&
+                    new Date(b.scheduled_at) >= now
+                ).length,
+                cancelled: data.filter(b => b.status === 'cancelled').length,
+                todaySessions: todaySessions.length,
+                weekSessions: weekSessions.length,
+                revenue: completed.reduce((sum, b) => sum + (b.amount || 0), 0)
+            };
+        }
+    } catch (error) {
+        console.error('Error fetching therapist booking stats:', error);
+    }
+
+    return {
+        total: 0,
+        completed: 0,
+        upcoming: 0,
+        cancelled: 0,
+        todaySessions: 0,
+        weekSessions: 0,
+        revenue: 0
+    };
+}
+
+// Default export with all functions
 export default {
+    // Types
     serviceTypes,
+    sessionPackages,
+    
+    // Fetch functions
     fetchTherapists,
     fetchTherapistById,
+    
+    // Availability
     getAvailableSlots,
     getAvailableDates,
+    
+    // Booking CRUD
     createBooking,
+    getBookingById,
     getUserBookings,
     getTherapistBookings,
     getUpcomingBookings,
     cancelBooking,
     rescheduleBooking,
-    getBookingStats
+    completeBooking,
+    
+    // Statistics
+    getBookingStats,
+    getTherapistBookingStats,
+    
+    // Timezone helpers
+    getUserTimezone,
+    convertToUserTimezone,
+    formatDateInTimezone,
 };

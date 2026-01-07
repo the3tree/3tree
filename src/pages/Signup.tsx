@@ -8,7 +8,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { gsap } from "gsap";
-import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Check, Shield, Calendar, MessageCircle } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Shield, Calendar, MessageCircle, Phone } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { countries } from "@/lib/data/countries";
 
 export default function Signup() {
   const { toast } = useToast();
@@ -16,10 +18,14 @@ export default function Signup() {
   const { signUpWithEmail, signInWithGoogle, user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<"patient" | "therapist">("patient");
+  const [role, setRole] = useState<"client" | "therapist">("client");
+  const [countryCode, setCountryCode] = useState('+1'); // Default to USA
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    phone: "",
+    dateOfBirth: "",
+    gender: "" as "" | "male" | "female" | "other" | "prefer_not_to_say",
     password: "",
     confirmPassword: "",
     agreeTerms: false,
@@ -30,7 +36,11 @@ export default function Signup() {
   // Redirect if already logged in
   useEffect(() => {
     if (user && !authLoading) {
-      navigate("/dashboard");
+      if (!user.is_profile_complete) {
+        navigate("/complete-profile");
+      } else {
+        navigate("/dashboard");
+      }
     }
   }, [user, authLoading, navigate]);
 
@@ -58,71 +68,127 @@ export default function Signup() {
     return () => ctx.revert();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match.",
-        variant: "destructive",
-      });
-      return;
+  const validateForm = () => {
+    if (!formData.fullName.trim()) {
+      toast({ title: "Name Required", description: "Please enter your full name.", variant: "destructive" });
+      return false;
     }
 
-    if (formData.password.length < 6) {
-      toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters.",
-        variant: "destructive",
-      });
-      return;
+    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast({ title: "Valid Email Required", description: "Please enter a valid email address.", variant: "destructive" });
+      return false;
+    }
+
+    if (!formData.phone.trim() || formData.phone.length < 10) {
+      toast({ title: "Phone Required", description: "Please enter a valid phone number (at least 10 digits).", variant: "destructive" });
+      return false;
+    }
+
+    if (!formData.dateOfBirth) {
+      toast({ title: "Date of Birth Required", description: "Please enter your date of birth.", variant: "destructive" });
+      return false;
+    }
+
+    // Validate age (must be at least 13 years old)
+    const birthDate = new Date(formData.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    if (age < 13) {
+      toast({ title: "Age Requirement", description: "You must be at least 13 years old to register.", variant: "destructive" });
+      return false;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast({ title: "Passwords don't match", description: "Please make sure your passwords match.", variant: "destructive" });
+      return false;
+    }
+
+    if (formData.password.length < 8) {
+      toast({ title: "Password too short", description: "Password must be at least 8 characters.", variant: "destructive" });
+      return false;
     }
 
     if (!formData.agreeTerms) {
-      toast({
-        title: "Terms Required",
-        description: "Please agree to the terms and conditions.",
-        variant: "destructive",
-      });
-      return;
+      toast({ title: "Terms Required", description: "Please agree to the terms and conditions.", variant: "destructive" });
+      return false;
     }
 
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    console.log('📝 Signup form submitted for:', formData.email.trim());
     setLoading(true);
+    try {
+      const { error } = await signUpWithEmail({
+        email: formData.email.trim(),
+        password: formData.password,
+        fullName: formData.fullName.trim(),
+        phone: `${countryCode}${formData.phone}`, // Combine country code with phone
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender || undefined,
+        role: role,
+      });
 
-    const { error } = await signUpWithEmail(
-      formData.email,
-      formData.password,
-      formData.fullName,
-      role
-    );
-
-    if (error) {
+      if (error) {
+        console.error('❌ Signup error from form:', error);
+        toast({
+          title: "Signup Failed",
+          description: error.message || "An error occurred. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('✅ Signup successful, redirecting...');
+        toast({
+          title: "Account Created!",
+          description: role === 'therapist'
+            ? "Welcome! Please complete your therapist profile for verification."
+            : "Welcome to The 3 Tree! You can now book sessions.",
+        });
+        // Therapists go to complete profile, clients go to dashboard
+        navigate(role === 'therapist' ? '/complete-profile' : '/dashboard');
+      }
+    } catch (err) {
+      console.error('❌ Unexpected error in signup form:', err);
       toast({
-        title: "Signup Failed",
-        description: error.message || "An error occurred. Please try again.",
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Account Created!",
-        description: "Welcome to The 3 Tree. Please check your email to verify your account.",
-      });
-      navigate("/login");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleGoogleSignup = async () => {
+    console.log('🔐 Google signup button clicked');
+    setLoading(true);
     const { error } = await signInWithGoogle();
     if (error) {
+      console.error('❌ Google signup error in form:', error);
       toast({
         title: "Google Signup Failed",
         description: error.message,
         variant: "destructive",
       });
+      setLoading(false);
     }
+    // Don't set loading to false on success - redirect will happen
+  };
+
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+    // Limit to 15 digits (international max)
+    return digits.slice(0, 15);
   };
 
   const benefits = [
@@ -146,9 +212,9 @@ export default function Signup() {
           </div>
 
           <div className="container mx-auto px-4">
-            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-start max-w-6xl mx-auto">
               {/* Left - Branding */}
-              <div className="hidden lg:block">
+              <div className="hidden lg:block sticky top-28">
                 <div className="space-y-6">
                   <div className="signup-feature">
                     <span className="inline-flex items-center gap-2 px-4 py-2 bg-[#1a2744] text-white rounded-full text-sm font-medium">
@@ -196,14 +262,14 @@ export default function Signup() {
                   <div className="grid grid-cols-2 gap-3 mb-6">
                     <button
                       type="button"
-                      onClick={() => setRole("patient")}
-                      className={`p-4 rounded-xl border-2 transition-all ${role === "patient"
+                      onClick={() => setRole("client")}
+                      className={`p-4 rounded-xl border-2 transition-all ${role === "client"
                         ? "border-[#1a2744] bg-[#1a2744]/5"
                         : "border-gray-200 hover:border-gray-300"
                         }`}
                     >
-                      <User className={`w-6 h-6 mx-auto mb-2 ${role === "patient" ? "text-[#1a2744]" : "text-gray-400"}`} />
-                      <p className={`font-medium ${role === "patient" ? "text-[#1a2744]" : "text-gray-600"}`}>
+                      <User className={`w-6 h-6 mx-auto mb-2 ${role === "client" ? "text-[#1a2744]" : "text-gray-400"}`} />
+                      <p className={`font-medium ${role === "client" ? "text-[#1a2744]" : "text-gray-600"}`}>
                         I'm a Client
                       </p>
                       <p className="text-xs text-gray-400 mt-1">Seeking therapy</p>
@@ -230,6 +296,7 @@ export default function Signup() {
                     variant="outline"
                     className="w-full h-12 rounded-xl border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 mb-4 transition-all"
                     onClick={handleGoogleSignup}
+                    disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                       <path
@@ -258,15 +325,16 @@ export default function Signup() {
                       <div className="w-full border-t border-gray-200" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="px-4 bg-white text-gray-500">or</span>
+                      <span className="px-4 bg-white text-gray-500">or register with email</span>
                     </div>
                   </div>
 
                   {/* Email Form */}
                   <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Full Name */}
                     <div>
                       <Label htmlFor="fullName" className="text-gray-700 font-medium">
-                        Full Name
+                        Full Name <span className="text-red-500">*</span>
                       </Label>
                       <div className="relative mt-1.5">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -282,9 +350,10 @@ export default function Signup() {
                       </div>
                     </div>
 
+                    {/* Email */}
                     <div>
                       <Label htmlFor="email" className="text-gray-700 font-medium">
-                        Email Address
+                        Email Address <span className="text-red-500">*</span>
                       </Label>
                       <div className="relative mt-1.5">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -300,18 +369,103 @@ export default function Signup() {
                       </div>
                     </div>
 
+                    {/* Phone Number with Country Code */}
+                    <div>
+                      <Label htmlFor="phone" className="text-gray-700 font-medium mb-2 block">
+                        Phone Number <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="flex gap-2">
+                        {/* Country Code Selector */}
+                        <Select value={countryCode} onValueChange={setCountryCode}>
+                          <SelectTrigger className="w-[140px] h-12 rounded-xl border-gray-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[300px]">
+                            {countries.map((country) => (
+                              <SelectItem key={country.code} value={country.dialCode}>
+                                <span className="flex items-center gap-2">
+                                  <span className="text-lg">{country.flag}</span>
+                                  <span className="font-medium">{country.dialCode}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Phone Input */}
+                        <div className="relative flex-1">
+                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <Input
+                            id="phone"
+                            type="tel"
+                            placeholder="9876543210"
+                            required
+                            value={formData.phone}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
+                              setFormData({ ...formData, phone: digits });
+                            }}
+                            className="pl-12 h-12 text-base rounded-xl border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">📱 For appointment reminders and therapist contact</p>
+                    </div>
+
+                    {/* Date of Birth & Gender */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="dateOfBirth" className="text-gray-700 font-medium">
+                          Date of Birth <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative mt-1.5">
+                          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                          <Input
+                            id="dateOfBirth"
+                            type="date"
+                            required
+                            value={formData.dateOfBirth}
+                            onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                            className="pl-12 h-11 rounded-xl border-gray-200"
+                            max={new Date().toISOString().split('T')[0]}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="gender" className="text-gray-700 font-medium">
+                          Gender
+                        </Label>
+                        <Select
+                          value={formData.gender}
+                          onValueChange={(value) => setFormData({ ...formData, gender: value as typeof formData.gender })}
+                        >
+                          <SelectTrigger className="mt-1.5 h-11 rounded-xl border-gray-200">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Passwords */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label htmlFor="password" className="text-gray-700 font-medium">
-                          Password
+                          Password <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative mt-1.5">
                           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <Input
                             id="password"
                             type={showPassword ? "text" : "password"}
-                            placeholder="••••••"
+                            placeholder="••••••••"
                             required
+                            minLength={8}
                             value={formData.password}
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             className="pl-12 h-11 rounded-xl border-gray-200"
@@ -320,14 +474,14 @@ export default function Signup() {
                       </div>
                       <div>
                         <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">
-                          Confirm
+                          Confirm <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative mt-1.5">
                           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <Input
                             id="confirmPassword"
                             type={showPassword ? "text" : "password"}
-                            placeholder="••••••"
+                            placeholder="••••••••"
                             required
                             value={formData.confirmPassword}
                             onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}

@@ -37,6 +37,14 @@ import {
     type TimeSlot
 } from '@/lib/bookingService';
 
+// Booking Automation
+import {
+    sendBookingConfirmation,
+    scheduleBookingReminders,
+    generateMeetingUrl,
+    sendMeetingLink
+} from '@/lib/services/bookingAutomation';
+
 // Steps configuration
 const STEPS = [
     { number: 1, label: 'Service' },
@@ -234,11 +242,13 @@ export default function BookingPage() {
             scheduledAt.setHours(hours, minutes, 0, 0);
 
             const result = await createBooking({
-                patient_id: user.id,
+                client_id: user.id,
                 therapist_id: currentTherapist.id,
-                service_type: currentService.id,
+                service_category_id: currentService.id,
+                session_mode: 'video',
                 scheduled_at: scheduledAt.toISOString(),
-                duration_minutes: currentService.duration
+                duration_minutes: currentService.duration,
+                client_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             });
 
             if (result.error) {
@@ -247,8 +257,60 @@ export default function BookingPage() {
 
             if (result.booking) {
                 setBookingId(result.booking.id);
-                setMeetingLink(result.booking.meeting_link || '');
+
+                // Generate meeting URL for video sessions
+                let meetingUrl = result.booking.meeting_url || result.booking.room_id || '';
+                if (!meetingUrl) {
+                    try {
+                        meetingUrl = await generateMeetingUrl(result.booking.id);
+                    } catch (error) {
+                        console.error('Failed to generate meeting URL:', error);
+                    }
+                }
+
+                setMeetingLink(meetingUrl);
                 setBookingComplete(true);
+
+                // Send booking automation (async, don't wait)
+                (async () => {
+                    try {
+                        // Send confirmation emails/SMS
+                        await sendBookingConfirmation({
+                            bookingId: result.booking.id,
+                            clientId: user.id,
+                            therapistId: currentTherapist.id,
+                            scheduledAt: scheduledAt.toISOString(),
+                            clientEmail: user.email,
+                            clientPhone: user.phone || undefined,
+                            clientName: user.full_name,
+                            therapistName: currentTherapist.user.full_name,
+                            therapistPhone: currentTherapist.user.phone || undefined,
+                            serviceType: currentService.name,
+                            sessionMode: 'video',
+                            meetingUrl: meetingUrl,
+                        });
+
+                        // Schedule automated reminders
+                        await scheduleBookingReminders({
+                            bookingId: result.booking.id,
+                            clientId: user.id,
+                            therapistId: currentTherapist.id,
+                            scheduledAt: scheduledAt.toISOString(),
+                            clientEmail: user.email,
+                            clientPhone: user.phone || undefined,
+                            clientName: user.full_name,
+                            therapistName: currentTherapist.user.full_name,
+                            serviceType: currentService.name,
+                            sessionMode: 'video',
+                            meetingUrl: meetingUrl,
+                        });
+
+                        console.log('✅ Booking automation completed');
+                    } catch (automationError) {
+                        console.error('⚠️ Booking automation failed (non-critical):', automationError);
+                        // Don't show error to user - booking was successful
+                    }
+                })();
 
                 toast({
                     title: 'Booking Confirmed!',
@@ -434,8 +496,8 @@ export default function BookingPage() {
                                                             specialtyFilter === specialty ? null : specialty
                                                         )}
                                                         className={`px-3 py-1.5 text-sm rounded-lg transition-all ${specialtyFilter === specialty
-                                                                ? 'bg-cyan-500 text-white'
-                                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                            ? 'bg-cyan-500 text-white'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                             }`}
                                                     >
                                                         {specialty}

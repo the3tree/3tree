@@ -69,8 +69,8 @@ export default function ServiceSelector({ services, selectedService, onSelect }:
                         data-service={service.id}
                         onClick={() => handleSelect(service.id)}
                         className={`service-card w-full p-6 rounded-2xl text-left transition-all duration-300 group relative overflow-hidden ${isSelected
-                                ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-500 shadow-lg shadow-cyan-500/10'
-                                : 'bg-white border-2 border-gray-100 hover:border-gray-200 hover:shadow-md'
+                            ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-500 shadow-lg shadow-cyan-500/10'
+                            : 'bg-white border-2 border-gray-100 hover:border-gray-200 hover:shadow-md'
                             }`}
                     >
                         {/* Background gradient on hover */}
@@ -83,8 +83,8 @@ export default function ServiceSelector({ services, selectedService, onSelect }:
                             {/* Icon */}
                             <div
                                 className={`flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${isSelected
-                                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 shadow-lg shadow-cyan-500/30'
-                                        : 'bg-gray-100 group-hover:bg-gray-200'
+                                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 shadow-lg shadow-cyan-500/30'
+                                    : 'bg-gray-100 group-hover:bg-gray-200'
                                     }`}
                             >
                                 <IconComponent
@@ -111,8 +111,8 @@ export default function ServiceSelector({ services, selectedService, onSelect }:
                                     {/* Selection indicator */}
                                     <div
                                         className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${isSelected
-                                                ? 'bg-cyan-500 shadow-lg shadow-cyan-500/30'
-                                                : 'bg-gray-100 group-hover:bg-gray-200'
+                                            ? 'bg-cyan-500 shadow-lg shadow-cyan-500/30'
+                                            : 'bg-gray-100 group-hover:bg-gray-200'
                                             }`}
                                     >
                                         {isSelected ? (
@@ -131,13 +131,13 @@ export default function ServiceSelector({ services, selectedService, onSelect }:
                                     </div>
                                     <div
                                         className={`text-lg font-bold ${service.price === 0
-                                                ? 'text-green-600'
-                                                : isSelected
-                                                    ? 'text-cyan-600'
-                                                    : 'text-gray-900'
+                                            ? 'text-green-600'
+                                            : isSelected
+                                                ? 'text-cyan-600'
+                                                : 'text-gray-900'
                                             }`}
                                     >
-                                        {service.price === 0 ? 'Free' : `$${service.price}`}
+                                        {service.price === 0 ? 'Free' : `₹${service.price.toLocaleString('en-IN')}`}
                                     </div>
                                     {service.price === 0 && (
                                         <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">

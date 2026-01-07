@@ -1,421 +1,251 @@
-/**
- * Payment Service - Stripe Integration
- * Handles payments for therapy sessions and packages
- */
+// Stripe Payment Integration Service
+// Handles payment processing for therapy sessions
 
-import { supabase } from '../supabase';
+import { supabase } from '@/lib/supabase';
 
-// ==========================================
 // Types
-// ==========================================
-
 export interface PaymentIntent {
     id: string;
     client_secret: string;
     amount: number;
     currency: string;
-    status: string;
+    status: 'requires_payment_method' | 'requires_confirmation' | 'succeeded' | 'canceled';
 }
 
-export interface SessionPackage {
+export interface CheckoutSession {
     id: string;
-    name: string;
-    session_count: number;
-    discount_percent: number;
-    description: string;
-    is_active: boolean;
+    url: string;
 }
 
-export interface PaymentRecord {
-    id: string;
+export interface PaymentDetails {
     booking_id: string;
-    client_id: string;
     amount: number;
-    currency: string;
-    status: 'pending' | 'paid' | 'refunded' | 'failed';
-    provider: string;
-    provider_payment_id?: string;
-    created_at: string;
+    currency?: string;
+    description?: string;
+    customer_email?: string;
+    customer_name?: string;
+    therapist_name?: string;
+    session_date?: string;
 }
 
-export interface PricingCalculation {
-    baseRate: number;
-    sessionCount: number;
-    discountPercent: number;
-    discountAmount: number;
-    subtotal: number;
-    total: number;
-    currency: string;
-}
-
-// ==========================================
-// Mock Data
-// ==========================================
-
-const mockPackages: SessionPackage[] = [
-    {
-        id: 'pkg_1',
-        name: 'Single Session',
-        session_count: 1,
-        discount_percent: 0,
-        description: 'Try a session with no commitment',
-        is_active: true
-    },
-    {
-        id: 'pkg_3',
-        name: '3-Session Package',
-        session_count: 3,
-        discount_percent: 5,
-        description: 'Begin your journey with a short series',
-        is_active: true
-    },
-    {
-        id: 'pkg_6',
-        name: '6-Session Package',
-        session_count: 6,
-        discount_percent: 10,
-        description: 'Deeper exploration and progress',
-        is_active: true
-    },
-    {
-        id: 'pkg_10',
-        name: '10-Session Package',
-        session_count: 10,
-        discount_percent: 15,
-        description: 'Comprehensive therapeutic journey',
-        is_active: true
-    }
-];
-
-// ==========================================
-// Package Functions
-// ==========================================
-
-/**
- * Fetch all active session packages
- */
-export async function fetchSessionPackages(): Promise<SessionPackage[]> {
+// Create a checkout session for booking payment
+export async function createCheckoutSession(details: PaymentDetails): Promise<{
+    data: CheckoutSession | null;
+    error: string | null;
+}> {
     try {
-        const { data, error } = await supabase
-            .from('session_packages')
-            .select('*')
-            .eq('is_active', true)
-            .order('session_count');
+        // Call Supabase Edge Function
+        const { data, error } = await supabase.functions.invoke('create-checkout', {
+            body: {
+                booking_id: details.booking_id,
+                amount: details.amount,
+                currency: details.currency || 'inr',
+                description: details.description || 'Therapy Session Booking',
+                customer_email: details.customer_email,
+                customer_name: details.customer_name,
+                therapist_name: details.therapist_name,
+                session_date: details.session_date,
+                success_url: `${window.location.origin}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${window.location.origin}/booking?canceled=true`,
+            },
+        });
 
         if (error) throw error;
-        if (data && data.length > 0) {
-            return data as SessionPackage[];
-        }
-    } catch (error) {
-        console.log('Using mock package data');
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('Checkout session error:', error);
+        return { data: null, error: error.message };
     }
-
-    return mockPackages;
 }
 
-/**
- * Get package by ID
- */
-export async function getPackageById(packageId: string): Promise<SessionPackage | null> {
+// Create a payment intent for client-side confirmation
+export async function createPaymentIntent(details: PaymentDetails): Promise<{
+    data: PaymentIntent | null;
+    error: string | null;
+}> {
     try {
-        const { data, error } = await supabase
-            .from('session_packages')
-            .select('*')
-            .eq('id', packageId)
-            .single();
+        const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+            body: {
+                booking_id: details.booking_id,
+                amount: Math.round(details.amount * 100), // Convert to smallest currency unit
+                currency: details.currency || 'inr',
+                description: details.description || 'Therapy Session Payment',
+            },
+        });
 
         if (error) throw error;
-        return data as SessionPackage;
-    } catch (error) {
-        console.log('Using mock package data');
-    }
 
-    return mockPackages.find(p => p.id === packageId) || null;
-}
-
-// ==========================================
-// Pricing Calculations
-// ==========================================
-
-/**
- * Calculate total price for a booking
- */
-export function calculatePrice(
-    baseRate: number,
-    sessionPackage: SessionPackage,
-    currency: string = 'USD'
-): PricingCalculation {
-    const subtotal = baseRate * sessionPackage.session_count;
-    const discountAmount = subtotal * (sessionPackage.discount_percent / 100);
-    const total = subtotal - discountAmount;
-
-    return {
-        baseRate,
-        sessionCount: sessionPackage.session_count,
-        discountPercent: sessionPackage.discount_percent,
-        discountAmount: Math.round(discountAmount * 100) / 100,
-        subtotal: Math.round(subtotal * 100) / 100,
-        total: Math.round(total * 100) / 100,
-        currency
-    };
-}
-
-/**
- * Format price for display
- */
-export function formatPrice(amount: number, currency: string = 'USD'): string {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency,
-    }).format(amount);
-}
-
-// ==========================================
-// Payment Processing
-// ==========================================
-
-/**
- * Create a payment intent (Stripe)
- * In production, this would call a Supabase Edge Function
- */
-export async function createPaymentIntent(
-    amount: number,
-    bookingId: string,
-    clientId: string,
-    currency: string = 'usd'
-): Promise<{ paymentIntent: PaymentIntent | null; error: string | null }> {
-    try {
-        // In production, call Edge Function
-        // const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-        //     body: { amount, bookingId, clientId, currency }
-        // });
-
-        // For development, return mock payment intent
-        const mockIntent: PaymentIntent = {
-            id: `pi_${Date.now()}`,
-            client_secret: `pi_${Date.now()}_secret_mock`,
-            amount: Math.round(amount * 100), // Stripe uses cents
-            currency,
-            status: 'requires_payment_method'
-        };
-
-        return { paymentIntent: mockIntent, error: null };
-    } catch (error) {
         return {
-            paymentIntent: null,
-            error: error instanceof Error ? error.message : 'Failed to create payment intent'
+            data: {
+                id: data.id,
+                client_secret: data.client_secret,
+                amount: data.amount / 100,
+                currency: data.currency,
+                status: data.status,
+            },
+            error: null,
         };
+    } catch (error: any) {
+        console.error('Payment intent error:', error);
+        return { data: null, error: error.message };
     }
 }
 
-/**
- * Confirm payment and record in database
- */
+// Confirm payment and update booking status
 export async function confirmPayment(
     bookingId: string,
-    clientId: string,
-    paymentIntentId: string,
-    amount: number,
-    currency: string = 'USD'
+    paymentIntentId: string
 ): Promise<{ success: boolean; error: string | null }> {
     try {
         const { error } = await supabase
-            .from('payments')
-            .insert({
+            .from('bookings')
+            .update({
+                payment_status: 'completed',
+                payment_id: paymentIntentId,
+                status: 'confirmed',
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', bookingId);
+
+        if (error) throw error;
+
+        // Create notification for therapist
+        const { data: booking } = await supabase
+            .from('bookings')
+            .select('therapist_id')
+            .eq('id', bookingId)
+            .single();
+
+        if (booking?.therapist_id) {
+            const { data: therapist } = await supabase
+                .from('therapists')
+                .select('user_id')
+                .eq('id', booking.therapist_id)
+                .single();
+
+            if (therapist?.user_id) {
+                await supabase.from('notifications').insert({
+                    user_id: therapist.user_id,
+                    type: 'booking_confirmed',
+                    title: 'New Booking Confirmed',
+                    message: 'A payment has been received for a new booking',
+                    data: { booking_id: bookingId },
+                });
+            }
+        }
+
+        return { success: true, error: null };
+    } catch (error: any) {
+        console.error('Payment confirmation error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Process refund for canceled booking
+export async function processRefund(
+    bookingId: string,
+    amount?: number,
+    reason?: string
+): Promise<{ success: boolean; refund_id?: string; error: string | null }> {
+    try {
+        const { data, error } = await supabase.functions.invoke('process-refund', {
+            body: {
                 booking_id: bookingId,
-                client_id: clientId,
-                amount,
-                currency,
-                status: 'paid',
-                provider: 'stripe',
-                provider_payment_id: paymentIntentId
-            });
+                amount: amount ? Math.round(amount * 100) : undefined,
+                reason: reason || 'Booking canceled',
+            },
+        });
 
         if (error) throw error;
 
         // Update booking status
         await supabase
             .from('bookings')
-            .update({ status: 'confirmed' })
+            .update({
+                payment_status: amount ? 'partially_refunded' : 'refunded',
+                updated_at: new Date().toISOString(),
+            })
             .eq('id', bookingId);
 
-        return { success: true, error: null };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to confirm payment'
-        };
+        return { success: true, refund_id: data.refund_id, error: null };
+    } catch (error: any) {
+        console.error('Refund error:', error);
+        return { success: false, error: error.message };
     }
 }
 
-/**
- * Get payment by booking ID
- */
-export async function getPaymentByBooking(bookingId: string): Promise<PaymentRecord | null> {
+// Get payment history for a user
+export async function getPaymentHistory(userId: string): Promise<{
+    data: any[];
+    error: string | null;
+}> {
     try {
         const { data, error } = await supabase
-            .from('payments')
-            .select('*')
-            .eq('booking_id', bookingId)
-            .single();
-
-        if (error) throw error;
-        return data as PaymentRecord;
-    } catch (error) {
-        return null;
-    }
-}
-
-/**
- * Get all payments for a client
- */
-export async function getClientPayments(clientId: string): Promise<PaymentRecord[]> {
-    try {
-        const { data, error } = await supabase
-            .from('payments')
-            .select('*')
-            .eq('client_id', clientId)
+            .from('bookings')
+            .select(`
+                id, amount, payment_status, payment_id, created_at, scheduled_at, service_type,
+                therapist:therapists(user:users(full_name))
+            `)
+            .eq('client_id', userId)
+            .in('payment_status', ['completed', 'refunded', 'partially_refunded'])
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as PaymentRecord[];
-    } catch (error) {
-        return [];
-    }
-}
 
-/**
- * Process refund
- */
-export async function processRefund(
-    paymentId: string,
-    reason?: string
-): Promise<{ success: boolean; error: string | null }> {
-    try {
-        // In production, call Stripe API via Edge Function
-        // const { data, error } = await supabase.functions.invoke('process-refund', {
-        //     body: { paymentId, reason }
-        // });
-
-        // Update payment status
-        const { error } = await supabase
-            .from('payments')
-            .update({ status: 'refunded' })
-            .eq('id', paymentId);
-
-        if (error) throw error;
-
-        return { success: true, error: null };
-    } catch (error) {
         return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to process refund'
+            data: (data || []).map((p: any) => ({
+                id: p.id,
+                amount: p.amount,
+                status: p.payment_status,
+                payment_id: p.payment_id,
+                date: p.created_at,
+                session_date: p.scheduled_at,
+                service: p.service_type,
+                therapist: p.therapist?.user?.full_name || 'Therapist',
+            })),
+            error: null,
         };
+    } catch (error: any) {
+        console.error('Payment history error:', error);
+        return { data: [], error: error.message };
     }
 }
 
-// ==========================================
-// Stripe Webhook Handling (Edge Function)
-// ==========================================
+// Calculate session price
+export function calculateSessionPrice(
+    baseRate: number,
+    sessionType: string,
+    durationMinutes: number = 50
+): number {
+    const multipliers: Record<string, number> = {
+        individual: 1,
+        couple: 1.5,
+        family: 2,
+        group: 0.6,
+    };
 
-/**
- * Handle Stripe webhook events
- * This would be implemented as a Supabase Edge Function
- * 
- * Example Edge Function code:
- * 
- * import Stripe from 'stripe';
- * import { createClient } from '@supabase/supabase-js';
- * 
- * const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!);
- * const supabase = createClient(
- *     Deno.env.get('SUPABASE_URL')!,
- *     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
- * );
- * 
- * Deno.serve(async (req) => {
- *     const signature = req.headers.get('stripe-signature');
- *     const body = await req.text();
- *     
- *     try {
- *         const event = stripe.webhooks.constructEvent(
- *             body,
- *             signature!,
- *             Deno.env.get('STRIPE_WEBHOOK_SECRET')!
- *         );
- *         
- *         switch (event.type) {
- *             case 'payment_intent.succeeded':
- *                 // Update payment status
- *                 break;
- *             case 'payment_intent.payment_failed':
- *                 // Handle failure
- *                 break;
- *         }
- *         
- *         return new Response(JSON.stringify({ received: true }), { status: 200 });
- *     } catch (error) {
- *         return new Response(JSON.stringify({ error: error.message }), { status: 400 });
- *     }
- * });
- */
+    const durationMultiplier = durationMinutes / 50;
+    const typeMultiplier = multipliers[sessionType] || 1;
 
-// ==========================================
-// Invoice Generation
-// ==========================================
-
-export interface Invoice {
-    id: string;
-    client_name: string;
-    client_email: string;
-    therapist_name: string;
-    service_name: string;
-    session_count: number;
-    date: string;
-    amount: number;
-    discount: number;
-    total: number;
-    status: string;
-    paid_at?: string;
+    return Math.round(baseRate * typeMultiplier * durationMultiplier);
 }
 
-/**
- * Generate invoice data
- */
-export function generateInvoice(
-    bookingId: string,
-    clientName: string,
-    clientEmail: string,
-    therapistName: string,
-    serviceName: string,
-    pricing: PricingCalculation,
-    paidAt?: string
-): Invoice {
-    return {
-        id: `INV-${bookingId.slice(-8).toUpperCase()}`,
-        client_name: clientName,
-        client_email: clientEmail,
-        therapist_name: therapistName,
-        service_name: serviceName,
-        session_count: pricing.sessionCount,
-        date: new Date().toISOString(),
-        amount: pricing.subtotal,
-        discount: pricing.discountAmount,
-        total: pricing.total,
-        status: paidAt ? 'paid' : 'pending',
-        paid_at: paidAt
-    };
+// Format currency for display
+export function formatCurrency(amount: number, currency: string = 'INR'): string {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
 }
 
 export default {
-    fetchSessionPackages,
-    getPackageById,
-    calculatePrice,
-    formatPrice,
+    createCheckoutSession,
     createPaymentIntent,
     confirmPayment,
-    getPaymentByBooking,
-    getClientPayments,
     processRefund,
-    generateInvoice
+    getPaymentHistory,
+    calculateSessionPrice,
+    formatCurrency,
 };

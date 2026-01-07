@@ -1,57 +1,56 @@
 import { Helmet } from "react-helmet-async";
 import Layout from "@/components/layout/Layout";
 import { Link } from "react-router-dom";
-import { Search, Tag, ArrowRight } from "lucide-react";
-import { useState } from "react";
-
-const categories = [
-    "All", "Mental Health", "Wellness", "Relationships", "Anxiety", "Depression", "Self-Care"
-];
-
-const blogPosts = [
-    {
-        id: 1,
-        title: "Understanding Anxiety: Signs, Symptoms, and Coping Strategies",
-        excerpt: "Learn to recognize anxiety symptoms and discover effective techniques to manage stress in your daily life.",
-        category: "Anxiety",
-        date: "Jan 3, 2026",
-        readTime: "5 min read",
-        image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=250&fit=crop",
-    },
-    {
-        id: 2,
-        title: "The Power of Mindfulness in Modern Life",
-        excerpt: "Discover how mindfulness practices can transform your mental health and bring peace to your busy life.",
-        category: "Wellness",
-        date: "Jan 2, 2026",
-        readTime: "7 min read",
-        image: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=250&fit=crop",
-    },
-    {
-        id: 3,
-        title: "Building Healthy Relationships: A Therapist's Guide",
-        excerpt: "Expert advice on communication, boundaries, and nurturing meaningful connections with others.",
-        category: "Relationships",
-        date: "Dec 30, 2025",
-        readTime: "6 min read",
-        image: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=400&h=250&fit=crop",
-    },
-];
+import { Search, ArrowRight, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { getBlogPosts, getBlogCategories, BlogPost, BlogCategory } from "@/lib/services/cmsService";
 
 export default function BlogsPage() {
     const [activeCategory, setActiveCategory] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
+    const [posts, setPosts] = useState<BlogPost[]>([]);
+    const [categories, setCategories] = useState<BlogCategory[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredPosts = blogPosts.filter(post => {
-        const matchesCategory = activeCategory === "All" || post.category === activeCategory;
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+
+        const [postsResult, categoriesResult] = await Promise.all([
+            getBlogPosts({ published: true }),
+            getBlogCategories(),
+        ]);
+
+        if (!postsResult.error) setPosts(postsResult.data);
+        if (!categoriesResult.error) setCategories(categoriesResult.data);
+
+        setLoading(false);
+    };
+
+    const filteredPosts = posts.filter(post => {
+        const matchesCategory = activeCategory === "All" || post.category === activeCategory.toLowerCase().replace(/\s+/g, '-');
         const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesCategory && matchesSearch;
     });
 
+    const allCategories = ["All", ...categories.map(c => c.name)];
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
     return (
         <>
             <Helmet>
-                <title>Blog | 3-3.com Counseling</title>
+                <title>Blog | The 3 Tree Mental Wellness</title>
+                <meta name="description" content="Read our latest articles on mental health, wellness, relationships, and self-care." />
             </Helmet>
             <Layout>
                 <section className="min-h-screen bg-gradient-subtle py-20 pt-28">
@@ -72,13 +71,13 @@ export default function BlogsPage() {
                         {/* Search & Filters */}
                         <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-10">
                             <div className="flex gap-2 flex-wrap justify-center">
-                                {categories.map((cat) => (
+                                {allCategories.map((cat) => (
                                     <button
                                         key={cat}
                                         onClick={() => setActiveCategory(cat)}
                                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activeCategory === cat
-                                                ? "bg-primary text-white"
-                                                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                                            ? "bg-primary text-white"
+                                            : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
                                             }`}
                                     >
                                         {cat}
@@ -97,45 +96,79 @@ export default function BlogsPage() {
                             </div>
                         </div>
 
+                        {/* Loading */}
+                        {loading && (
+                            <div className="flex items-center justify-center py-20">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                            </div>
+                        )}
+
+                        {/* Empty State */}
+                        {!loading && filteredPosts.length === 0 && (
+                            <div className="text-center py-20">
+                                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Search className="w-10 h-10 text-gray-400" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-gray-900 mb-2">No articles found</h3>
+                                <p className="text-gray-500">
+                                    {searchQuery
+                                        ? "Try a different search term or category"
+                                        : "We're working on new content. Check back soon!"}
+                                </p>
+                            </div>
+                        )}
+
                         {/* Blog Grid */}
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {filteredPosts.map((post) => (
-                                <article
-                                    key={post.id}
-                                    className="card-elevated overflow-hidden group hover:shadow-lg transition-all"
-                                >
-                                    <div className="aspect-video overflow-hidden">
-                                        <img
-                                            src={post.image}
-                                            alt={post.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        />
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
-                                                {post.category}
-                                            </span>
-                                            <span className="text-gray-400 text-xs">{post.date}</span>
+                        {!loading && filteredPosts.length > 0 && (
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {filteredPosts.map((post) => (
+                                    <article
+                                        key={post.id}
+                                        className="card-elevated overflow-hidden group hover:shadow-lg transition-all"
+                                    >
+                                        <div className="aspect-video overflow-hidden bg-gray-100">
+                                            {post.cover_image ? (
+                                                <img
+                                                    src={post.cover_image}
+                                                    alt={post.title}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                                                    <span className="text-4xl">📝</span>
+                                                </div>
+                                            )}
                                         </div>
-                                        <h2 className="font-serif text-xl text-gray-900 mb-2 group-hover:text-primary transition-colors">
-                                            {post.title}
-                                        </h2>
-                                        <p className="text-gray-500 text-sm mb-4">{post.excerpt}</p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs text-gray-400">{post.readTime}</span>
-                                            <Link
-                                                to={`/blogs/${post.id}`}
-                                                className="inline-flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all"
-                                            >
-                                                Read More
-                                                <ArrowRight className="w-4 h-4 ml-1" />
-                                            </Link>
+                                        <div className="p-6">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                {post.category && (
+                                                    <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full capitalize">
+                                                        {post.category.replace(/-/g, ' ')}
+                                                    </span>
+                                                )}
+                                                <span className="text-gray-400 text-xs">
+                                                    {formatDate(post.published_at || post.created_at)}
+                                                </span>
+                                            </div>
+                                            <h2 className="font-serif text-xl text-gray-900 mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                                                {post.title}
+                                            </h2>
+                                            <p className="text-gray-500 text-sm mb-4 line-clamp-2">{post.excerpt}</p>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs text-gray-400">{post.read_time_minutes} min read</span>
+                                                <Link
+                                                    to={`/blogs/${post.slug}`}
+                                                    className="inline-flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all"
+                                                >
+                                                    Read More
+                                                    <ArrowRight className="w-4 h-4 ml-1" />
+                                                </Link>
+                                            </div>
                                         </div>
-                                    </div>
-                                </article>
-                            ))}
-                        </div>
+                                    </article>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </section>
             </Layout>

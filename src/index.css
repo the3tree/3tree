@@ -261,7 +261,124 @@
   .scroll-indicator {
     @apply fixed right-8 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-2;
   }
+
+  /* Premium Navbar Styles */
+  .nav-link {
+    @apply relative px-4 py-2 text-gray-700 font-medium transition-all duration-300;
+  }
+
+  .nav-link::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-300 rounded-full;
+  }
+
+  .nav-link:hover::after,
+  .nav-link.active::after {
+    @apply w-full;
+  }
+
+  .nav-link:hover {
+    @apply text-cyan-600;
+  }
+
+  /* Premium Button Animations */
+  .btn-hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .btn-hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 40px -10px rgba(14, 165, 233, 0.4);
+  }
+
+  .btn-hover-lift:active {
+    transform: translateY(-1px);
+  }
+
+  /* Smooth Card Hover Effects */
+  .card-hover {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Premium Input Styles */
+  .input-premium {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl transition-all duration-300;
+    @apply focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 focus:outline-none;
+  }
+
+  .input-premium:hover {
+    @apply border-gray-300;
+  }
+
+  /* Gradient Text Animation */
+  .text-gradient-animate {
+    background: linear-gradient(90deg, #0ea5e9, #3b82f6, #0ea5e9);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientShift 3s ease-in-out infinite;
+  }
+
+  @keyframes gradientShift {
+
+    0%,
+    100% {
+      background-position: 0% center;
+    }
+
+    50% {
+      background-position: 100% center;
+    }
+  }
+
+  /* Mobile Menu Animation */
+  .mobile-menu-enter {
+    animation: slideDown 0.3s ease-out forwards;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Badge Pulse */
+  .badge-pulse {
+    @apply relative;
+  }
+
+  .badge-pulse::before {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-current opacity-40;
+    animation: badgePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes badgePulse {
+
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.4;
+    }
+
+    50% {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+  }
 }
+
 
 @layer utilities {
 

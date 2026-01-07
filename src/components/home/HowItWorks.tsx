@@ -128,19 +128,19 @@ export default function HowItWorks() {
             {steps.map((step, index) => (
               <div key={step.number} className="step-card relative">
                 {/* Step Card */}
-                <div className="bg-slate-50 rounded-2xl p-6 lg:p-8 h-full border border-gray-100 hover:border-primary/20 hover:shadow-lg transition-all duration-300 group">
+                <div className="bg-white rounded-2xl p-6 lg:p-8 h-full border border-gray-100 hover:border-cyan-200/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
                   {/* Number & Icon */}
                   <div className="flex items-start justify-between mb-6">
-                    <div className="w-14 h-14 bg-[#1a2744] rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                    <div className="w-14 h-14 bg-gradient-to-br from-slate-900 to-slate-700 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:shadow-xl transition-all duration-300">
                       <step.icon className="w-7 h-7 text-white" />
                     </div>
-                    <span className="font-serif text-4xl font-bold text-gray-200 group-hover:text-primary/30 transition-colors">
+                    <span className="font-serif text-4xl font-bold text-gray-200 group-hover:text-cyan-300 transition-colors duration-300">
                       {step.number}
                     </span>
                   </div>
 
                   {/* Content */}
-                  <h3 className="font-semibold text-lg text-gray-900 mb-3">
+                  <h3 className="font-semibold text-lg text-gray-900 mb-3 group-hover:text-slate-800">
                     {step.title}
                   </h3>
                   <p className="text-gray-600 text-sm leading-relaxed">
@@ -163,7 +163,7 @@ export default function HowItWorks() {
         <div className="text-center mt-14">
           <Link
             to="/booking"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-[#1a2744] hover:bg-[#0f1a2e] text-white font-semibold rounded-lg shadow-lg shadow-gray-900/10 transition-all group"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-full shadow-lg shadow-slate-900/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
           >
             Get Started Today
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

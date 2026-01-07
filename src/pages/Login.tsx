@@ -50,7 +50,7 @@ export default function Login() {
       }
 
       // Button hover effects
-      gsap.utils.toArray(".login-btn").forEach((btn: any) => {
+      gsap.utils.toArray<HTMLElement>(".login-btn").forEach((btn) => {
         btn.addEventListener("mouseenter", () => {
           gsap.to(btn, { scale: 1.02, duration: 0.2, ease: "power2.out" });
         });
@@ -65,27 +65,46 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
-    const { error } = await signInWithEmail(formData.email, formData.password);
-
-    if (error) {
-      toast({
-        title: "Login Failed",
-        description: error.message || "Invalid credentials. Please try again.",
-        variant: "destructive",
-      });
-    } else {
-      toast({ title: "Welcome back!", description: "Login successful." });
-      navigate("/dashboard");
+    if (!formData.email.trim() || !formData.password.trim()) {
+      toast({ title: "Missing fields", description: "Please enter email and password.", variant: "destructive" });
+      return;
     }
 
-    setLoading(false);
+    console.log('📧 Login form submitted for:', formData.email.trim());
+    setLoading(true);
+    try {
+      const { error } = await signInWithEmail(formData.email.trim(), formData.password);
+
+      if (error) {
+        console.error('❌ Login error from form:', error);
+        toast({
+          title: "Login Failed",
+          description: error.message || "Invalid credentials. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('✅ Login successful from form, navigating to dashboard');
+        toast({ title: "Welcome back!", description: "Login successful." });
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      console.error('❌ Unexpected error in login form:', err);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
+    console.log('🔐 Google login button clicked');
     const { error } = await signInWithGoogle();
     if (error) {
+      console.error('❌ Google login error in form:', error);
       toast({
         title: "Google Login Failed",
         description: error.message,

@@ -87,17 +87,17 @@ const PHQ9_ASSESSMENT: Assessment = {
     estimated_minutes: 5,
     is_clinical: true,
     is_active: true,
-    questions: [
-        { id: 'q1', text: 'Little interest or pleasure in doing things', type: 'likert', required: true },
-        { id: 'q2', text: 'Feeling down, depressed, or hopeless', type: 'likert', required: true },
-        { id: 'q3', text: 'Trouble falling or staying asleep, or sleeping too much', type: 'likert', required: true },
-        { id: 'q4', text: 'Feeling tired or having little energy', type: 'likert', required: true },
-        { id: 'q5', text: 'Poor appetite or overeating', type: 'likert', required: true },
-        { id: 'q6', text: 'Feeling bad about yourself — or that you are a failure or have let yourself or your family down', type: 'likert', required: true },
-        { id: 'q7', text: 'Trouble concentrating on things, such as reading the newspaper or watching television', type: 'likert', required: true },
-        { id: 'q8', text: 'Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual', type: 'likert', required: true },
-        { id: 'q9', text: 'Thoughts that you would be better off dead or of hurting yourself in some way', type: 'likert', required: true },
-    ].map(q => ({
+    questions: ([
+        { id: 'q1', text: 'Little interest or pleasure in doing things', type: 'likert' as const, required: true },
+        { id: 'q2', text: 'Feeling down, depressed, or hopeless', type: 'likert' as const, required: true },
+        { id: 'q3', text: 'Trouble falling or staying asleep, or sleeping too much', type: 'likert' as const, required: true },
+        { id: 'q4', text: 'Feeling tired or having little energy', type: 'likert' as const, required: true },
+        { id: 'q5', text: 'Poor appetite or overeating', type: 'likert' as const, required: true },
+        { id: 'q6', text: 'Feeling bad about yourself — or that you are a failure or have let yourself or your family down', type: 'likert' as const, required: true },
+        { id: 'q7', text: 'Trouble concentrating on things, such as reading the newspaper or watching television', type: 'likert' as const, required: true },
+        { id: 'q8', text: 'Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual', type: 'likert' as const, required: true },
+        { id: 'q9', text: 'Thoughts that you would be better off dead or of hurting yourself in some way', type: 'likert' as const, required: true },
+    ]).map(q => ({
         ...q,
         options: [
             { value: 0, label: 'Not at all' },
@@ -127,15 +127,15 @@ const GAD7_ASSESSMENT: Assessment = {
     estimated_minutes: 4,
     is_clinical: true,
     is_active: true,
-    questions: [
-        { id: 'q1', text: 'Feeling nervous, anxious, or on edge', type: 'likert', required: true },
-        { id: 'q2', text: 'Not being able to stop or control worrying', type: 'likert', required: true },
-        { id: 'q3', text: 'Worrying too much about different things', type: 'likert', required: true },
-        { id: 'q4', text: 'Trouble relaxing', type: 'likert', required: true },
-        { id: 'q5', text: 'Being so restless that it\'s hard to sit still', type: 'likert', required: true },
-        { id: 'q6', text: 'Becoming easily annoyed or irritable', type: 'likert', required: true },
-        { id: 'q7', text: 'Feeling afraid as if something awful might happen', type: 'likert', required: true },
-    ].map(q => ({
+    questions: ([
+        { id: 'q1', text: 'Feeling nervous, anxious, or on edge', type: 'likert' as const, required: true },
+        { id: 'q2', text: 'Not being able to stop or control worrying', type: 'likert' as const, required: true },
+        { id: 'q3', text: 'Worrying too much about different things', type: 'likert' as const, required: true },
+        { id: 'q4', text: 'Trouble relaxing', type: 'likert' as const, required: true },
+        { id: 'q5', text: "Being so restless that it's hard to sit still", type: 'likert' as const, required: true },
+        { id: 'q6', text: 'Becoming easily annoyed or irritable', type: 'likert' as const, required: true },
+        { id: 'q7', text: 'Feeling afraid as if something awful might happen', type: 'likert' as const, required: true },
+    ]).map(q => ({
         ...q,
         options: [
             { value: 0, label: 'Not at all' },
@@ -164,18 +164,18 @@ const PSS_ASSESSMENT: Assessment = {
     estimated_minutes: 5,
     is_clinical: false,
     is_active: true,
-    questions: [
-        { id: 'q1', text: 'In the last month, how often have you been upset because of something that happened unexpectedly?', type: 'likert', required: true },
-        { id: 'q2', text: 'In the last month, how often have you felt that you were unable to control the important things in your life?', type: 'likert', required: true },
-        { id: 'q3', text: 'In the last month, how often have you felt nervous and stressed?', type: 'likert', required: true },
-        { id: 'q4', text: 'In the last month, how often have you felt confident about your ability to handle your personal problems?', type: 'likert', required: true, reverse_scored: true },
-        { id: 'q5', text: 'In the last month, how often have you felt that things were going your way?', type: 'likert', required: true, reverse_scored: true },
-        { id: 'q6', text: 'In the last month, how often have you found that you could not cope with all the things that you had to do?', type: 'likert', required: true },
-        { id: 'q7', text: 'In the last month, how often have you been able to control irritations in your life?', type: 'likert', required: true, reverse_scored: true },
-        { id: 'q8', text: 'In the last month, how often have you felt that you were on top of things?', type: 'likert', required: true, reverse_scored: true },
-        { id: 'q9', text: 'In the last month, how often have you been angered because of things that happened that were outside of your control?', type: 'likert', required: true },
-        { id: 'q10', text: 'In the last month, how often have you felt difficulties were piling up so high that you could not overcome them?', type: 'likert', required: true },
-    ].map(q => ({
+    questions: ([
+        { id: 'q1', text: 'In the last month, how often have you been upset because of something that happened unexpectedly?', type: 'likert' as const, required: true },
+        { id: 'q2', text: 'In the last month, how often have you felt that you were unable to control the important things in your life?', type: 'likert' as const, required: true },
+        { id: 'q3', text: 'In the last month, how often have you felt nervous and stressed?', type: 'likert' as const, required: true },
+        { id: 'q4', text: 'In the last month, how often have you felt confident about your ability to handle your personal problems?', type: 'likert' as const, required: true, reverse_scored: true },
+        { id: 'q5', text: 'In the last month, how often have you felt that things were going your way?', type: 'likert' as const, required: true, reverse_scored: true },
+        { id: 'q6', text: 'In the last month, how often have you found that you could not cope with all the things that you had to do?', type: 'likert' as const, required: true },
+        { id: 'q7', text: 'In the last month, how often have you been able to control irritations in your life?', type: 'likert' as const, required: true, reverse_scored: true },
+        { id: 'q8', text: 'In the last month, how often have you felt that you were on top of things?', type: 'likert' as const, required: true, reverse_scored: true },
+        { id: 'q9', text: 'In the last month, how often have you been angered because of things that happened that were outside of your control?', type: 'likert' as const, required: true },
+        { id: 'q10', text: 'In the last month, how often have you felt difficulties were piling up so high that you could not overcome them?', type: 'likert' as const, required: true },
+    ]).map(q => ({
         ...q,
         options: [
             { value: 0, label: 'Never' },

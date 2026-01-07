@@ -269,18 +269,20 @@ export function useBooking(): [BookingState, BookingActions] {
         }
 
         const bookingData: CreateBookingData = {
-            patient_id: userId,
+            client_id: userId,
             therapist_id: selectedTherapist,
-            service_type: selectedService,
+            service_category_id: selectedService,
+            session_mode: 'video',
             scheduled_at: scheduledAt.toISOString(),
-            duration_minutes: service.duration
+            duration_minutes: service.duration,
+            client_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         };
 
         // Validate
         const validation = validateBookingCreate({
-            patientId: bookingData.patient_id,
+            patientId: bookingData.client_id,
             therapistId: bookingData.therapist_id,
-            serviceType: bookingData.service_type,
+            serviceType: bookingData.service_category_id || '',
             scheduledAt: bookingData.scheduled_at,
             durationMinutes: bookingData.duration_minutes
         });

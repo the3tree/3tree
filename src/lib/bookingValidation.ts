@@ -197,7 +197,7 @@ export function validateEmail(email: string): boolean {
  */
 export function validatePhone(phone: string): boolean {
     const phoneRegex = /^\+?1?\d{10,14}$/;
-    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+    return phoneRegex.test(phone.replace(/[\s\-()]/g, ''));
 }
 
 /**

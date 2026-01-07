@@ -36,10 +36,10 @@ import {
 } from '@/lib/bookingService';
 
 const quickActions = [
-    { icon: Calendar, label: 'Book Session', href: '/booking', color: 'bg-gradient-to-br from-cyan-500 to-blue-600' },
-    { icon: MessageCircle, label: 'Messages', href: '/messages', color: 'bg-gradient-to-br from-green-500 to-emerald-600' },
-    { icon: FileText, label: 'Assessments', href: '/assessments', color: 'bg-gradient-to-br from-purple-500 to-violet-600' },
-    { icon: BookOpen, label: 'Resources', href: '/guides', color: 'bg-gradient-to-br from-orange-500 to-amber-600' },
+    { icon: Calendar, label: 'Book Session', href: '/booking', color: 'bg-slate-800' },
+    { icon: MessageCircle, label: 'Messages', href: '/messages', color: 'bg-slate-700' },
+    { icon: FileText, label: 'Assessments', href: '/assessments', color: 'bg-slate-600' },
+    { icon: BookOpen, label: 'Resources', href: '/guides', color: 'bg-slate-500' },
 ];
 
 export default function PatientDashboard() {
@@ -180,10 +180,21 @@ export default function PatientDashboard() {
             </Helmet>
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
-                <header className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
-                    <div className="container mx-auto px-4 lg:px-8 py-4 flex items-center justify-between">
+                <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+                    <div className="container mx-auto px-4 lg:px-8 py-3 flex items-center justify-between">
                         <Link to="/" className="flex items-center gap-3">
-                            <img src="/logo.png" alt="Logo" className="h-10" />
+                            <img
+                                src="/logo.png"
+                                alt="The 3 Tree"
+                                className="h-10 w-auto"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                }}
+                            />
+                            <div className="hidden sm:flex flex-col">
+                                <span className="font-serif text-lg font-bold text-slate-800">The 3 Tree</span>
+                                <span className="text-[10px] text-slate-500 -mt-0.5">Mental Wellness</span>
+                            </div>
                         </Link>
                         <div className="flex items-center gap-4">
                             <button className="relative p-2 rounded-full hover:bg-gray-100 transition-colors">
@@ -229,21 +240,21 @@ export default function PatientDashboard() {
 
                     {/* Stats Cards */}
                     <div className="dashboard-card grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 text-white">
-                            <p className="text-cyan-100 text-sm mb-1">Total Sessions</p>
+                        <div className="bg-slate-800 rounded-2xl p-5 text-white">
+                            <p className="text-slate-300 text-sm mb-1">Total Sessions</p>
                             <p className="text-3xl font-bold">{stats.total}</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                            <p className="text-gray-500 text-sm mb-1">Completed</p>
-                            <p className="text-3xl font-bold text-gray-900">{stats.completed}</p>
+                        <div className="bg-white rounded-2xl p-5 border border-gray-200">
+                            <p className="text-slate-500 text-sm mb-1">Completed</p>
+                            <p className="text-3xl font-bold text-slate-800">{stats.completed}</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                            <p className="text-gray-500 text-sm mb-1">Upcoming</p>
-                            <p className="text-3xl font-bold text-green-600">{stats.upcoming}</p>
+                        <div className="bg-white rounded-2xl p-5 border border-gray-200">
+                            <p className="text-slate-500 text-sm mb-1">Upcoming</p>
+                            <p className="text-3xl font-bold text-slate-600">{stats.upcoming}</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                            <p className="text-gray-500 text-sm mb-1">Cancelled</p>
-                            <p className="text-3xl font-bold text-gray-400">{stats.cancelled}</p>
+                        <div className="bg-white rounded-2xl p-5 border border-gray-200">
+                            <p className="text-slate-500 text-sm mb-1">Cancelled</p>
+                            <p className="text-3xl font-bold text-slate-400">{stats.cancelled}</p>
                         </div>
                     </div>
 
@@ -255,7 +266,7 @@ export default function PatientDashboard() {
                                 to={action.href}
                                 className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-lg transition-all group"
                             >
-                                <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center mb-4 shadow-lg`}>
+                                <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center mb-4`}>
                                     <action.icon className="w-6 h-6 text-white" />
                                 </div>
                                 <p className="font-semibold text-gray-900 group-hover:text-cyan-600 transition-colors">
@@ -298,15 +309,15 @@ export default function PatientDashboard() {
                                                 key={booking.id}
                                                 className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
                                             >
-                                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                                <div className="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                                                     {booking.therapist?.user?.full_name?.charAt(0) || 'T'}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-semibold text-gray-900 truncate">
                                                         {booking.therapist?.user?.full_name || 'Therapist'}
                                                     </p>
-                                                    <p className="text-sm text-gray-500 capitalize">
-                                                        {booking.service_type.replace(/_/g, ' ')} • {booking.duration_minutes} min
+                                                    <p className="text-sm text-slate-500 capitalize">
+                                                        {booking.session_mode?.replace(/_/g, ' ') || 'Session'} • {booking.duration_minutes} min
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-4">
@@ -414,7 +425,7 @@ export default function PatientDashboard() {
                                         </div>
                                         <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                                             <div
-                                                className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-500"
+                                                className="bg-slate-600 h-2 rounded-full transition-all duration-500"
                                                 style={{ width: `${Math.min((stats.completed / Math.max(stats.total, 1)) * 100, 100)}%` }}
                                             />
                                         </div>
@@ -428,7 +439,7 @@ export default function PatientDashboard() {
                                         </div>
                                         <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                                             <div
-                                                className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-500"
+                                                className="bg-slate-500 h-2 rounded-full transition-all duration-500"
                                                 style={{ width: `${stats.total > 0 ? Math.round((1 - stats.cancelled / stats.total) * 100) : 100}%` }}
                                             />
                                         </div>
@@ -458,9 +469,9 @@ export default function PatientDashboard() {
                             </div>
 
                             {/* Support Card */}
-                            <div className="dashboard-card bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-6 text-white">
+                            <div className="dashboard-card bg-slate-800 rounded-2xl p-6 text-white">
                                 <h3 className="font-semibold mb-2">Need Help?</h3>
-                                <p className="text-cyan-100 text-sm mb-4">
+                                <p className="text-slate-300 text-sm mb-4">
                                     Our support team is here for you 24/7
                                 </p>
                                 <Button

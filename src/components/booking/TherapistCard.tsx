@@ -63,8 +63,8 @@ export default function TherapistCard({ therapist, isSelected, onSelect, index =
             ref={cardRef}
             onClick={handleClick}
             className={`w-full p-6 rounded-2xl text-left transition-all duration-300 group relative overflow-hidden ${isSelected
-                    ? 'bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-500 shadow-xl shadow-cyan-500/15'
-                    : 'bg-white border-2 border-gray-100 hover:border-gray-200 hover:shadow-lg'
+                ? 'bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-500 shadow-xl shadow-cyan-500/15'
+                : 'bg-white border-2 border-gray-100 hover:border-gray-200 hover:shadow-lg'
                 }`}
         >
             {/* Selection badge */}
@@ -130,8 +130,8 @@ export default function TherapistCard({ therapist, isSelected, onSelect, index =
                         <span
                             key={specialty}
                             className={`px-3 py-1 text-xs font-medium rounded-full transition-colors duration-300 ${isSelected
-                                    ? 'bg-cyan-100 text-cyan-700'
-                                    : 'bg-gray-100 text-gray-600'
+                                ? 'bg-cyan-100 text-cyan-700'
+                                : 'bg-gray-100 text-gray-600'
                                 }`}
                         >
                             {specialty}
@@ -163,7 +163,7 @@ export default function TherapistCard({ therapist, isSelected, onSelect, index =
                 {/* Price */}
                 <div className={`text-xl font-bold ${isSelected ? 'text-cyan-600' : 'text-gray-900'
                     }`}>
-                    ${therapist.hourly_rate}
+                    ₹{therapist.hourly_rate?.toLocaleString('en-IN') || '3,500'}
                     <span className="text-sm font-normal text-gray-400">/session</span>
                 </div>
             </div>
