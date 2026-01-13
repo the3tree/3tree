@@ -679,15 +679,25 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
     const amount = data.amount || service?.price || 3500;
 
     try {
-        // Get service name for service_type column
-        const serviceType = service?.name || data.session_mode || 'Individual Therapy';
+        // Map service name to allowed DB values: 'individual', 'couple', 'group', 'child', 'holistic'
+        // The DB has a CHECK constraint that only allows these values
+        const mapServiceType = (serviceName: string | undefined): string => {
+            const name = (serviceName || '').toLowerCase();
+            if (name.includes('couple') || name.includes('relationship')) return 'couple';
+            if (name.includes('group')) return 'group';
+            if (name.includes('child') || name.includes('teen') || name.includes('adolescent')) return 'child';
+            if (name.includes('holistic') || name.includes('wellness') || name.includes('mindfulness')) return 'holistic';
+            return 'individual'; // Default to individual for all other cases
+        };
+
+        const serviceType = mapServiceType(service?.name || data.session_mode);
 
         // Insert booking with columns that match the ACTUAL database schema
         // DB uses: patient_id, therapist_id, service_type, scheduled_at, duration_minutes, status, meeting_link, notes, amount, payment_status
         const bookingData = {
             patient_id: data.client_id,  // DB uses 'patient_id' not 'client_id'
             therapist_id: data.therapist_id,
-            service_type: serviceType,   // DB uses 'service_type' not 'session_mode'
+            service_type: serviceType,   // Must be one of: individual, couple, group, child, holistic
             scheduled_at: data.scheduled_at,
             duration_minutes: data.duration_minutes || 60,
             status: 'confirmed',
