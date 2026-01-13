@@ -679,21 +679,22 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
     const amount = data.amount || service?.price || 3500;
 
     try {
-        // Insert booking with only columns that exist in the schema
-        // Note: amount/currency/payment_status are in 'payments' table, not 'bookings'
+        // Get service name for service_type column
+        const serviceType = service?.name || data.session_mode || 'Individual Therapy';
+
+        // Insert booking with columns that match the ACTUAL database schema
+        // DB uses: patient_id, therapist_id, service_type, scheduled_at, duration_minutes, status, meeting_link, notes, amount, payment_status
         const bookingData = {
-            client_id: data.client_id,
+            patient_id: data.client_id,  // DB uses 'patient_id' not 'client_id'
             therapist_id: data.therapist_id,
-            session_mode: data.session_mode || 'video',
+            service_type: serviceType,   // DB uses 'service_type' not 'session_mode'
             scheduled_at: data.scheduled_at,
-            duration_minutes: data.duration_minutes || 50,
-            status: 'confirmed' as const,
-            meeting_url: meetingUrl,
-            room_id: roomId,
-            client_timezone: data.client_timezone || getUserTimezone(),
-            notes_client: data.notes_client || null,
-            intake_form_completed: false,
-            reminder_sent: false,
+            duration_minutes: data.duration_minutes || 60,
+            status: 'confirmed',
+            meeting_link: meetingUrl,    // DB uses 'meeting_link' not 'meeting_url'
+            notes: data.notes_client || null,
+            amount: amount,
+            payment_status: amount === 0 ? 'paid' : 'pending',
         };
 
         console.log('📝 Creating booking with data:', bookingData);
@@ -707,6 +708,9 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
 
         if (insertError) {
             console.error('❌ Booking insert error:', insertError);
+            console.error('❌ Error code:', insertError.code);
+            console.error('❌ Error details:', insertError.details);
+            console.error('❌ Error hint:', insertError.hint);
 
             // Check if this is RLS policy error
             if (insertError.code === '42501' || insertError.message?.includes('policy')) {
@@ -723,7 +727,13 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
 
         console.log('✅ Booking created:', insertedBooking?.id);
 
-        const booking = insertedBooking;
+        // Map the DB response to our expected format
+        const booking = {
+            ...insertedBooking,
+            client_id: insertedBooking.patient_id,  // Map back for frontend
+            meeting_url: insertedBooking.meeting_link || meetingUrl,
+            room_id: roomId,
+        };
 
         // ============================================
         // AUTOMATION: Send Confirmations & Reminders
