@@ -679,37 +679,26 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
     const amount = data.amount || service?.price || 3500;
 
     try {
-        // Insert booking with simplified structure (no complex joins in insert)
-        const bookingData: Record<string, unknown> = {
+        // Insert booking with only columns that exist in the schema
+        // Note: amount/currency/payment_status are in 'payments' table, not 'bookings'
+        const bookingData = {
             client_id: data.client_id,
             therapist_id: data.therapist_id,
-            service_category_id: data.service_category_id || null,
-            package_id: data.package_id || null,
             session_mode: data.session_mode || 'video',
             scheduled_at: data.scheduled_at,
             duration_minutes: data.duration_minutes || 50,
-            status: 'confirmed',
+            status: 'confirmed' as const,
             meeting_url: meetingUrl,
             room_id: roomId,
-            notes_client: data.notes_client || null,
             client_timezone: data.client_timezone || getUserTimezone(),
+            notes_client: data.notes_client || null,
             intake_form_completed: false,
             reminder_sent: false,
         };
 
-        // Only add optional columns if they exist in the schema
-        // These columns may not exist in all schema versions
-        try {
-            Object.assign(bookingData, {
-                amount: amount,
-                currency: data.currency || 'INR',
-                payment_status: amount === 0 ? 'paid' : 'pending',
-            });
-        } catch {
-            // Ignore if columns don't exist
-        }
+        console.log('📝 Creating booking with data:', bookingData);
 
-        // First insert the booking
+        // Insert the booking
         const { data: insertedBooking, error: insertError } = await supabase
             .from('bookings')
             .insert(bookingData)
@@ -717,47 +706,22 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
             .single();
 
         if (insertError) {
-            console.error('Booking insert error:', insertError);
+            console.error('❌ Booking insert error:', insertError);
 
-            // Try simpler insert without optional fields
-            if (insertError.message?.includes('column') || insertError.code === '42703') {
-                const simpleBookingData = {
-                    client_id: data.client_id,
-                    therapist_id: data.therapist_id,
-                    session_mode: data.session_mode || 'video',
-                    scheduled_at: data.scheduled_at,
-                    duration_minutes: data.duration_minutes || 50,
-                    status: 'confirmed',
-                    meeting_url: meetingUrl,
-                    room_id: roomId,
-                    client_timezone: data.client_timezone || getUserTimezone(),
-                };
+            // Check if this is RLS policy error
+            if (insertError.code === '42501' || insertError.message?.includes('policy')) {
+                throw new Error('Permission denied. Please ensure you are logged in.');
+            }
 
-                const { data: simpleBooking, error: simpleError } = await supabase
-                    .from('bookings')
-                    .insert(simpleBookingData)
-                    .select('*')
-                    .single();
-
-                if (simpleError) {
-                    console.error('Simple booking insert error:', simpleError);
-                    throw simpleError;
-                }
-
-                // Return with minimal booking data
-                return {
-                    booking: {
-                        ...simpleBooking,
-                        id: simpleBooking.id,
-                        meeting_url: meetingUrl,
-                        room_id: roomId,
-                    } as BookingDetails,
-                    error: null
-                };
+            // Check for FK constraint errors
+            if (insertError.code === '23503') {
+                throw new Error('Invalid reference. Please refresh and try again.');
             }
 
             throw insertError;
         }
+
+        console.log('✅ Booking created:', insertedBooking?.id);
 
         const booking = insertedBooking;
 
