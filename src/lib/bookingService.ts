@@ -68,16 +68,20 @@ export interface TherapistWithDetails {
 
 export interface BookingDetails {
     id: string;
-    client_id: string;
+    client_id?: string; // Deprecated, use patient_id
+    patient_id: string;
     therapist_id: string;
     service_category_id?: string | null;
     package_id?: string | null;
-    session_mode: 'video' | 'audio' | 'chat' | 'in_person';
+    service_type?: string; // DB uses service_type
+    session_mode: 'video' | 'audio' | 'chat' | 'in_person'; // Mapped from service_type or passed directly
     scheduled_at: string;
     duration_minutes: number;
     status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show' | 'rescheduled';
-    meeting_url?: string | null;
+    meeting_link?: string | null; // DB uses meeting_link
+    meeting_url?: string | null; // Frontend uses meeting_url
     room_id?: string | null;
+    notes?: string | null; // DB uses notes
     notes_client?: string | null;
     notes_therapist?: string | null;
     client_timezone?: string | null;
@@ -94,7 +98,8 @@ export interface BookingDetails {
     created_at: string;
     updated_at?: string;
     therapist?: TherapistWithDetails;
-    client?: User;
+    client?: User; // Deprecated, use patient
+    patient?: User;
 }
 
 export interface CreateBookingData {
@@ -871,9 +876,9 @@ export async function getUserBookings(userId: string): Promise<BookingDetails[]>
                     *,
                     user:users(*)
                 ),
-                client:users!client_id(*)
+                patient:users!patient_id(*)
             `)
-            .eq('client_id', userId)
+            .eq('patient_id', userId)
             .order('scheduled_at', { ascending: false });
 
         if (error) throw error;
@@ -895,7 +900,7 @@ export async function getTherapistBookings(therapistId: string): Promise<Booking
             .from('bookings')
             .select(`
                 *,
-                client:users!client_id(*)
+                patient:users!patient_id(*)
             `)
             .eq('therapist_id', therapistId)
             .order('scheduled_at', { ascending: true });
@@ -924,9 +929,9 @@ export async function getUpcomingBookings(userId: string): Promise<BookingDetail
                     *,
                     user:users(*)
                 ),
-                client:users!client_id(*)
+                patient:users!patient_id(*)
             `)
-            .eq('client_id', userId)
+            .eq('patient_id', userId)
             .gte('scheduled_at', now)
             .in('status', ['pending', 'confirmed'])
             .order('scheduled_at', { ascending: true })
@@ -1142,7 +1147,7 @@ export async function getBookingStats(userId?: string): Promise<{
         let query = supabase.from('bookings').select('status, scheduled_at', { count: 'exact' });
 
         if (userId) {
-            query = query.eq('client_id', userId);
+            query = query.eq('patient_id', userId);
         }
 
         const { data, error, count } = await query;

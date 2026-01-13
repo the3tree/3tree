@@ -81,7 +81,7 @@ export async function getUserStats(userId: string): Promise<UserStats> {
         const { data: bookings } = await supabase
             .from('bookings')
             .select('status, duration_minutes, scheduled_at')
-            .eq('client_id', userId);
+            .eq('patient_id', userId);
 
         if (!bookings) {
             return getEmptyStats();
@@ -235,7 +235,7 @@ export async function getTherapistStats(therapistId: string): Promise<TherapistS
         // Get all bookings
         const { data: bookings } = await supabase
             .from('bookings')
-            .select('client_id, status, scheduled_at, duration_minutes')
+            .select('patient_id, status, scheduled_at, duration_minutes')
             .eq('therapist_id', therapistId);
 
         if (!bookings) {
@@ -243,7 +243,7 @@ export async function getTherapistStats(therapistId: string): Promise<TherapistS
         }
 
         // Unique patients
-        const uniquePatients = new Set(bookings.map(b => b.client_id)).size;
+        const uniquePatients = new Set(bookings.map(b => b.patient_id)).size;
 
         // Completed this month
         const completedThisMonth = bookings.filter(
