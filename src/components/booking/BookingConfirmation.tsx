@@ -220,20 +220,40 @@ export default function BookingConfirmation({
                 <div className="confirm-item bg-white rounded-2xl p-6 border border-gray-100 shadow-lg">
                     <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <CreditCard className="w-5 h-5" />
-                        Payment Method
+                        Payment Options
                     </h3>
-                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                        <div className="w-12 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">VISA</span>
+                    <div className="space-y-3">
+                        {/* UPI Options */}
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                    <span className="text-xs font-bold text-blue-600">UPI</span>
+                                </div>
+                                <span className="text-sm text-gray-600">GPay • PhonePe • Paytm • BHIM</span>
+                            </div>
                         </div>
-                        <div className="flex-1">
-                            <p className="font-medium text-gray-900">•••• •••• •••• 4242</p>
-                            <p className="text-sm text-gray-500">Expires 12/28</p>
+                        {/* Cards */}
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                                    <span className="text-xs font-bold text-white">💳</span>
+                                </div>
+                                <span className="text-sm text-gray-600">Credit & Debit Cards</span>
+                            </div>
                         </div>
-                        <button className="text-cyan-600 text-sm font-medium hover:underline">
-                            Change
-                        </button>
+                        {/* Net Banking */}
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <span className="text-xs font-bold text-green-600">🏦</span>
+                                </div>
+                                <span className="text-sm text-gray-600">Net Banking (All Banks)</span>
+                            </div>
+                        </div>
                     </div>
+                    <p className="text-xs text-gray-400 mt-3 text-center">
+                        Powered by Razorpay • 100% Secure Payment
+                    </p>
                 </div>
             )}
 

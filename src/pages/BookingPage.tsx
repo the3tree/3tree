@@ -45,6 +45,9 @@ import {
     sendMeetingLink
 } from '@/lib/services/bookingAutomation';
 
+// Razorpay Payment
+import { openPaymentModal, type RazorpayPaymentResult } from '@/lib/services/razorpayService';
+
 // Steps configuration
 const STEPS = [
     { number: 1, label: 'Service' },
@@ -225,23 +228,25 @@ export default function BookingPage() {
             return;
         }
 
-        setSubmitting(true);
+        // Parse time to create scheduled_at
+        const timeMatch = selectedTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (!timeMatch) {
+            toast({ title: 'Error', description: 'Invalid time format', variant: 'destructive' });
+            return;
+        }
 
-        try {
-            // Parse time to create scheduled_at
-            const timeMatch = selectedTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
-            if (!timeMatch) throw new Error('Invalid time format');
+        let hours = parseInt(timeMatch[1]);
+        const minutes = parseInt(timeMatch[2]);
+        const period = timeMatch[3].toUpperCase();
 
-            let hours = parseInt(timeMatch[1]);
-            const minutes = parseInt(timeMatch[2]);
-            const period = timeMatch[3].toUpperCase();
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
 
-            if (period === 'PM' && hours !== 12) hours += 12;
-            if (period === 'AM' && hours === 12) hours = 0;
+        const scheduledAt = new Date(selectedDate);
+        scheduledAt.setHours(hours, minutes, 0, 0);
 
-            const scheduledAt = new Date(selectedDate);
-            scheduledAt.setHours(hours, minutes, 0, 0);
-
+        // Helper function to complete booking
+        const completeBooking = async () => {
             const result = await createBooking({
                 client_id: user.id,
                 therapist_id: currentTherapist.id,
@@ -252,41 +257,75 @@ export default function BookingPage() {
                 client_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             });
 
-            if (result.error) {
-                throw new Error(result.error);
-            }
+            if (result.error) throw new Error(result.error);
 
             if (result.booking) {
                 setBookingId(result.booking.id);
-
-                // Generate meeting URL for video sessions
                 let meetingUrl = result.booking.meeting_url || result.booking.room_id || '';
                 if (!meetingUrl) {
-                    try {
-                        meetingUrl = await generateMeetingUrl(result.booking.id);
-                    } catch (error) {
-                        console.error('Failed to generate meeting URL:', error);
-                    }
+                    try { meetingUrl = await generateMeetingUrl(result.booking.id); } catch { }
                 }
-
-                // Automation is now handled directly in createBooking service for reliability
                 setMeetingLink(meetingUrl);
                 setBookingComplete(true);
-
-                toast({
-                    title: 'Booking Confirmed!',
-                    description: 'Your appointment has been scheduled successfully.'
-                });
+                toast({ title: 'Booking Confirmed!', description: 'Your appointment has been scheduled successfully.' });
             }
-        } catch (error) {
-            console.error('Booking failed:', error);
-            toast({
-                title: 'Booking Failed',
-                description: error instanceof Error ? error.message : 'Please try again.',
-                variant: 'destructive'
-            });
-        } finally {
-            setSubmitting(false);
+        };
+
+        // For PAID services - open Razorpay payment modal
+        if (currentService.price > 0) {
+            setSubmitting(true);
+
+            openPaymentModal(
+                {
+                    bookingId: `pending_${Date.now()}`,
+                    amount: currentService.price,
+                    currency: 'INR',
+                    customerName: user.email?.split('@')[0] || 'Customer',
+                    customerEmail: user.email || '',
+                    customerPhone: '',
+                    serviceName: currentService.name,
+                    therapistName: currentTherapist.user.full_name,
+                },
+                // On Payment Success
+                async (paymentResult: RazorpayPaymentResult) => {
+                    console.log('Payment successful:', paymentResult);
+                    try {
+                        await completeBooking();
+                    } catch (error) {
+                        console.error('Booking after payment failed:', error);
+                        toast({
+                            title: 'Booking Failed',
+                            description: 'Payment successful but booking failed. Please contact support.',
+                            variant: 'destructive'
+                        });
+                    } finally {
+                        setSubmitting(false);
+                    }
+                },
+                // On Payment Failure/Cancel
+                (error: string) => {
+                    console.log('Payment failed:', error);
+                    setSubmitting(false);
+                    if (error !== 'Payment cancelled') {
+                        toast({ title: 'Payment Failed', description: error, variant: 'destructive' });
+                    }
+                }
+            );
+        } else {
+            // For FREE services - create booking directly
+            setSubmitting(true);
+            try {
+                await completeBooking();
+            } catch (error) {
+                console.error('Booking failed:', error);
+                toast({
+                    title: 'Booking Failed',
+                    description: error instanceof Error ? error.message : 'Please try again.',
+                    variant: 'destructive'
+                });
+            } finally {
+                setSubmitting(false);
+            }
         }
     };
 

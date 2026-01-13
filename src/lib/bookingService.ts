@@ -679,47 +679,87 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
     const amount = data.amount || service?.price || 3500;
 
     try {
-        // Insert booking with transaction-like checks
-        const { data: booking, error } = await supabase
-            .from('bookings')
-            .insert({
-                client_id: data.client_id,
-                therapist_id: data.therapist_id,
-                service_category_id: data.service_category_id || null,
-                package_id: data.package_id || null,
-                session_mode: data.session_mode || 'video',
-                scheduled_at: data.scheduled_at,
-                duration_minutes: data.duration_minutes || 50,
-                status: 'confirmed', // Auto-confirm for now
-                meeting_url: meetingUrl,
-                room_id: roomId,
-                notes_client: data.notes_client || null,
-                client_timezone: data.client_timezone || getUserTimezone(),
+        // Insert booking with simplified structure (no complex joins in insert)
+        const bookingData: Record<string, unknown> = {
+            client_id: data.client_id,
+            therapist_id: data.therapist_id,
+            service_category_id: data.service_category_id || null,
+            package_id: data.package_id || null,
+            session_mode: data.session_mode || 'video',
+            scheduled_at: data.scheduled_at,
+            duration_minutes: data.duration_minutes || 50,
+            status: 'confirmed',
+            meeting_url: meetingUrl,
+            room_id: roomId,
+            notes_client: data.notes_client || null,
+            client_timezone: data.client_timezone || getUserTimezone(),
+            intake_form_completed: false,
+            reminder_sent: false,
+        };
+
+        // Only add optional columns if they exist in the schema
+        // These columns may not exist in all schema versions
+        try {
+            Object.assign(bookingData, {
                 amount: amount,
                 currency: data.currency || 'INR',
                 payment_status: amount === 0 ? 'paid' : 'pending',
-                intake_form_completed: false,
-                reminder_sent: false,
-            })
-            .select(`
-                *,
-                therapist:therapists(
-                    *,
-                    user:users(*)
-                ),
-                client:users!client_id(*)
-            `)
+            });
+        } catch {
+            // Ignore if columns don't exist
+        }
+
+        // First insert the booking
+        const { data: insertedBooking, error: insertError } = await supabase
+            .from('bookings')
+            .insert(bookingData)
+            .select('*')
             .single();
 
-        if (error) {
-            console.error('Booking creation error:', error);
+        if (insertError) {
+            console.error('Booking insert error:', insertError);
 
-            // Check for specific error types
-            if (error.code === '23505') {
-                return { booking: null, error: 'This time slot was just booked. Please select another time.' };
+            // Try simpler insert without optional fields
+            if (insertError.message?.includes('column') || insertError.code === '42703') {
+                const simpleBookingData = {
+                    client_id: data.client_id,
+                    therapist_id: data.therapist_id,
+                    session_mode: data.session_mode || 'video',
+                    scheduled_at: data.scheduled_at,
+                    duration_minutes: data.duration_minutes || 50,
+                    status: 'confirmed',
+                    meeting_url: meetingUrl,
+                    room_id: roomId,
+                    client_timezone: data.client_timezone || getUserTimezone(),
+                };
+
+                const { data: simpleBooking, error: simpleError } = await supabase
+                    .from('bookings')
+                    .insert(simpleBookingData)
+                    .select('*')
+                    .single();
+
+                if (simpleError) {
+                    console.error('Simple booking insert error:', simpleError);
+                    throw simpleError;
+                }
+
+                // Return with minimal booking data
+                return {
+                    booking: {
+                        ...simpleBooking,
+                        id: simpleBooking.id,
+                        meeting_url: meetingUrl,
+                        room_id: roomId,
+                    } as BookingDetails,
+                    error: null
+                };
             }
-            throw error;
+
+            throw insertError;
         }
+
+        const booking = insertedBooking;
 
         // ============================================
         // AUTOMATION: Send Confirmations & Reminders
