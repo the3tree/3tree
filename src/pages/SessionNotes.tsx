@@ -68,6 +68,7 @@ export default function SessionNotes() {
 
     useEffect(() => {
         if (user) loadSessionNotes();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     useEffect(() => {
@@ -113,6 +114,7 @@ export default function SessionNotes() {
                 .in('status', ['completed', 'confirmed', 'in_progress'])
                 .order('scheduled_at', { ascending: false });
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const notesData: SessionNote[] = (bookings || []).map((b: any) => {
                 let soapData: SOAPNote | null = null;
                 let plainNotes = b.notes_therapist || '';

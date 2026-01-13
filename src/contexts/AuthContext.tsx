@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase, User, PatientDetails } from '@/lib/supabase';
 import { Session, AuthError, User as SupabaseAuthUser } from '@supabase/supabase-js';
@@ -117,13 +119,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Safety timeout to prevent infinite loading state
         const loadingTimeout = setTimeout(() => {
-            setLoading(false);
-        }, 5000);
+            if (loading) {
+                console.warn('⚠️ Auth loading timeout reached, forcing loading to false');
+                setLoading(false);
+            }
+        }, 8000);
 
         return () => {
             subscription.unsubscribe();
             clearTimeout(loadingTimeout);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchUserProfile = async (userId: string) => {

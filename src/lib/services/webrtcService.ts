@@ -74,11 +74,20 @@ export class WebRTCService {
     private peerConnection: RTCPeerConnection | null = null;
     private localStream: MediaStream | null = null;
     private remoteStream: MediaStream | null = null;
+    private screenStream: MediaStream | null = null;
     private signalingChannel: RealtimeChannel | null = null;
     private config: RTCConfig | null = null;
     private iceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS;
     private pendingIceCandidates: RTCIceCandidateInit[] = [];
     private remoteDescriptionSet = false;
+    private isScreenSharing = false;
+    private connectionQuality: 'excellent' | 'good' | 'fair' | 'poor' | 'unknown' = 'unknown';
+    private qualityCheckInterval: NodeJS.Timeout | null = null;
+    private waitingRoom = true;
+    private isAdmitted = false;
+    private onQualityChange?: (quality: string) => void;
+    private onScreenShareChange?: (isSharing: boolean) => void;
+    private onWaitingRoomUpdate?: (admitted: boolean) => void;
 
     /**
      * Initialize WebRTC connection
@@ -404,10 +413,200 @@ export class WebRTCService {
     }
 
     /**
+     * Start screen sharing
+     */
+    async startScreenShare(): Promise<boolean> {
+        try {
+            this.screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    cursor: 'always',
+                    displaySurface: 'monitor'
+                } as MediaTrackConstraints,
+                audio: false
+            });
+
+            const screenTrack = this.screenStream.getVideoTracks()[0];
+
+            // Replace video track with screen track
+            const sender = this.peerConnection?.getSenders().find(s => s.track?.kind === 'video');
+            if (sender && this.localStream) {
+                await sender.replaceTrack(screenTrack);
+            }
+
+            // Handle when user stops sharing via browser UI
+            screenTrack.onended = () => {
+                this.stopScreenShare();
+            };
+
+            this.isScreenSharing = true;
+            this.onScreenShareChange?.(true);
+            console.log('Screen sharing started');
+            return true;
+        } catch (error) {
+            console.error('Failed to start screen share:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Stop screen sharing
+     */
+    async stopScreenShare(): Promise<void> {
+        if (this.screenStream) {
+            this.screenStream.getTracks().forEach(track => track.stop());
+            this.screenStream = null;
+        }
+
+        // Restore camera video
+        if (this.localStream && this.peerConnection) {
+            const videoTrack = this.localStream.getVideoTracks()[0];
+            const sender = this.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+            if (sender && videoTrack) {
+                await sender.replaceTrack(videoTrack);
+            }
+        }
+
+        this.isScreenSharing = false;
+        this.onScreenShareChange?.(false);
+        console.log('Screen sharing stopped');
+    }
+
+    /**
+     * Check if screen sharing is active
+     */
+    getScreenShareStatus(): boolean {
+        return this.isScreenSharing;
+    }
+
+    /**
+     * Start connection quality monitoring
+     */
+    startQualityMonitoring(callback: (quality: string) => void): void {
+        this.onQualityChange = callback;
+
+        this.qualityCheckInterval = setInterval(async () => {
+            const quality = await this.measureConnectionQuality();
+            if (quality !== this.connectionQuality) {
+                this.connectionQuality = quality;
+                this.onQualityChange?.(quality);
+            }
+        }, 3000);
+    }
+
+    /**
+     * Stop connection quality monitoring
+     */
+    stopQualityMonitoring(): void {
+        if (this.qualityCheckInterval) {
+            clearInterval(this.qualityCheckInterval);
+            this.qualityCheckInterval = null;
+        }
+    }
+
+    /**
+     * Measure connection quality based on RTCStats
+     */
+    private async measureConnectionQuality(): Promise<'excellent' | 'good' | 'fair' | 'poor' | 'unknown'> {
+        if (!this.peerConnection) return 'unknown';
+
+        try {
+            const stats = await this.peerConnection.getStats();
+            let packetLoss = 0;
+            let roundTripTime = 0;
+            let jitter = 0;
+
+            stats.forEach(report => {
+                if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                    roundTripTime = report.currentRoundTripTime * 1000 || 0;
+                }
+                if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                    const lost = report.packetsLost || 0;
+                    const received = report.packetsReceived || 1;
+                    packetLoss = (lost / (lost + received)) * 100;
+                    jitter = report.jitter * 1000 || 0;
+                }
+            });
+
+            // Quality assessment based on metrics
+            if (roundTripTime < 100 && packetLoss < 1 && jitter < 30) {
+                return 'excellent';
+            } else if (roundTripTime < 200 && packetLoss < 3 && jitter < 50) {
+                return 'good';
+            } else if (roundTripTime < 400 && packetLoss < 8 && jitter < 100) {
+                return 'fair';
+            } else {
+                return 'poor';
+            }
+        } catch {
+            return 'unknown';
+        }
+    }
+
+    /**
+     * Get current connection quality
+     */
+    getConnectionQuality(): string {
+        return this.connectionQuality;
+    }
+
+    /**
+     * Set waiting room callback
+     */
+    setWaitingRoomCallback(callback: (admitted: boolean) => void): void {
+        this.onWaitingRoomUpdate = callback;
+    }
+
+    /**
+     * Admit participant from waiting room (therapist only)
+     */
+    async admitParticipant(participantId: string): Promise<void> {
+        if (this.signalingChannel) {
+            await this.signalingChannel.send({
+                type: 'broadcast',
+                event: 'admit',
+                payload: { participantId, admitted: true }
+            });
+        }
+    }
+
+    /**
+     * Handle admission (client side)
+     */
+    handleAdmission(admitted: boolean): void {
+        this.isAdmitted = admitted;
+        this.onWaitingRoomUpdate?.(admitted);
+    }
+
+    /**
+     * Check if admitted from waiting room
+     */
+    isAdmittedFromWaitingRoom(): boolean {
+        return this.isAdmitted;
+    }
+
+    /**
+     * Send chat message during call
+     */
+    async sendChatMessage(message: string): Promise<void> {
+        if (this.signalingChannel && this.config) {
+            await this.signalingChannel.send({
+                type: 'broadcast',
+                event: 'chat',
+                payload: {
+                    senderId: this.config.userId,
+                    message,
+                    timestamp: new Date().toISOString()
+                }
+            });
+        }
+    }
+
+    /**
      * Handle disconnection
      */
     private handleDisconnection(): void {
         console.log('Handling disconnection...');
+        this.stopQualityMonitoring();
         // Could implement reconnection logic here
     }
 

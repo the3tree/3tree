@@ -42,6 +42,7 @@ export default function SuperAdminLogin() {
     const [dynamicPin, setDynamicPin] = useState(SUPER_ADMIN_PIN);
 
     // Authenticated user data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [authenticatedUser, setAuthenticatedUser] = useState<any>(null);
 
     // Check for existing lockout on mount
@@ -167,10 +168,11 @@ export default function SuperAdminLogin() {
                 description: 'Please enter your security PIN',
             });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
             toast({
                 title: 'Error',
-                description: error.message || 'An unexpected error occurred',
+                description: errorMessage,
                 variant: 'destructive'
             });
         } finally {

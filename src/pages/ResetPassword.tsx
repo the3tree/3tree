@@ -83,9 +83,10 @@ export default function ResetPassword() {
                 setTimeout(() => navigate("/login"), 3000);
             }
         } catch (err) {
+            console.error("Reset password error:", err);
             toast({
-                title: "Error",
-                description: "An unexpected error occurred. Please try again.",
+                title: "Reset Failed",
+                description: "Unable to update password. Please try again or request a new link.",
                 variant: "destructive",
             });
         } finally {
@@ -100,7 +101,7 @@ export default function ResetPassword() {
                     <title>Reset Password | The 3 Tree</title>
                 </Helmet>
                 <Layout>
-                    <section className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/30 py-20 pt-28 flex items-center">
+                    <section className="min-h-screen bg-[#F8FAFC] py-20 pt-28 flex items-center">
                         <div className="container mx-auto px-4">
                             <div className="max-w-md mx-auto">
                                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl border border-gray-100 text-center">
@@ -121,7 +122,7 @@ export default function ResetPassword() {
                 <meta name="description" content="Create a new password for your The 3 Tree account." />
             </Helmet>
             <Layout>
-                <section className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/30 py-20 pt-28 flex items-center">
+                <section className="min-h-screen bg-[#F8FAFC] py-20 pt-28 flex items-center">
                     <div className="container mx-auto px-4">
                         <div className="max-w-md mx-auto">
                             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 lg:p-10 shadow-xl border border-gray-100">

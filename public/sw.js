@@ -1,7 +1,3 @@
-/// <reference lib="webworker" />
-
-declare const self: ServiceWorkerGlobalScope;
-
 // Service Worker for 3Tree Wellness Platform
 // Handles background push notifications and offline caching
 
@@ -84,7 +80,7 @@ self.addEventListener('push', (event) => {
     try {
         const data = event.data.json();
 
-        const options: NotificationOptions = {
+        const options = {
             body: data.message || data.body,
             icon: '/icon-192.png',
             badge: '/badge-72.png',
@@ -141,7 +137,7 @@ self.addEventListener('sync', (event) => {
     }
 });
 
-async function syncMessages(): Promise<void> {
+async function syncMessages() {
     // Sync any queued offline messages when back online
     const cache = await caches.open('3tree-offline-queue');
     const requests = await cache.keys();
@@ -155,5 +151,3 @@ async function syncMessages(): Promise<void> {
         }
     }
 }
-
-export { };

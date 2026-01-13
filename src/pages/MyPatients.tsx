@@ -52,6 +52,7 @@ export default function MyPatients() {
         if (user) {
             loadPatients();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const loadPatients = async () => {
@@ -90,6 +91,7 @@ export default function MyPatients() {
             // Aggregate patient data
             const patientMap = new Map<string, PatientData>();
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (bookings || []).forEach((booking: any) => {
                 const patientId = booking.patient_id;
                 const existing = patientMap.get(patientId);

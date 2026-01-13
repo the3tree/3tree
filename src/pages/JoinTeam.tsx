@@ -162,8 +162,9 @@ export default function JoinTeam() {
       ]);
 
       toast({ title: "File uploaded", description: `${file.name} uploaded successfully` });
-    } catch (error: any) {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      toast({ title: "Upload failed", description: errorMessage, variant: "destructive" });
     } finally {
       setUploadingFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -258,9 +259,10 @@ export default function JoinTeam() {
       // Show success step
       setCurrentStep(4);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Application error:', error);
-      toast({ title: "Application failed", description: error.message, variant: "destructive" });
+      const errorMessage = error instanceof Error ? error.message : 'Application failed';
+      toast({ title: "Application failed", description: errorMessage, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -308,7 +310,7 @@ export default function JoinTeam() {
                   {[1, 2, 3].map(step => (
                     <div key={step} className="flex items-center">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all ${currentStep === step ? 'bg-cyan-500 text-white scale-110' :
-                          currentStep > step ? 'bg-green-500 text-white' : 'bg-white/20 text-white/60'
+                        currentStep > step ? 'bg-green-500 text-white' : 'bg-white/20 text-white/60'
                         }`}>
                         {currentStep > step ? <CheckCircle className="w-5 h-5" /> : step}
                       </div>
@@ -442,7 +444,7 @@ export default function JoinTeam() {
                           {specialtyOptions.map(specialty => (
                             <button key={specialty} type="button" onClick={() => handleSpecialtyToggle(specialty)}
                               className={`px-3 py-1.5 rounded-full text-sm transition-all ${formData.specialties.includes(specialty)
-                                  ? 'bg-cyan-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-cyan-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}>
                               {specialty}
                             </button>

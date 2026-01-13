@@ -1,13 +1,10 @@
 // Skeleton Loaders - Loading state placeholders
 import { cn } from '@/lib/utils';
+import { HTMLAttributes } from 'react';
 
-interface SkeletonProps {
-  className?: string;
-}
-
-export function Skeleton({ className }: SkeletonProps) {
+export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("animate-pulse bg-gray-200 rounded", className)} />
+    <div className={cn("animate-pulse bg-gray-200 rounded", className)} {...props} />
   );
 }
 

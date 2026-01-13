@@ -31,7 +31,7 @@ export default function NotFound() {
               404
             </div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+              <div className="w-24 h-24 bg-gradient-to-br from-[#161A30] to-[#2d3a54] rounded-full flex items-center justify-center shadow-lg animate-bounce">
                 <Search className="w-10 h-10 text-white" />
               </div>
             </div>
@@ -77,7 +77,7 @@ export default function NotFound() {
                 <Link
                   key={link.href}
                   to={link.href}
-                  className="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-cyan-50 hover:text-cyan-600 hover:border-cyan-200 transition-colors"
+                  className="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-[#F8FAFC] hover:text-[#161A30] hover:border-[#161A30]/20 transition-colors"
                 >
                   {link.label}
                 </Link>

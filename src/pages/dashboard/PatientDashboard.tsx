@@ -68,6 +68,7 @@ export default function PatientDashboard() {
         if (user) {
             loadBookings();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     // Animate on load

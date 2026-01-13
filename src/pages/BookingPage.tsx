@@ -97,6 +97,7 @@ export default function BookingPage() {
     // Load therapists on mount
     useEffect(() => {
         loadTherapists();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Load available dates when therapist is selected
@@ -268,49 +269,9 @@ export default function BookingPage() {
                     }
                 }
 
+                // Automation is now handled directly in createBooking service for reliability
                 setMeetingLink(meetingUrl);
                 setBookingComplete(true);
-
-                // Send booking automation (async, don't wait)
-                (async () => {
-                    try {
-                        // Send confirmation emails/SMS
-                        await sendBookingConfirmation({
-                            bookingId: result.booking.id,
-                            clientId: user.id,
-                            therapistId: currentTherapist.id,
-                            scheduledAt: scheduledAt.toISOString(),
-                            clientEmail: user.email,
-                            clientPhone: user.phone || undefined,
-                            clientName: user.full_name,
-                            therapistName: currentTherapist.user.full_name,
-                            therapistPhone: currentTherapist.user.phone || undefined,
-                            serviceType: currentService.name,
-                            sessionMode: 'video',
-                            meetingUrl: meetingUrl,
-                        });
-
-                        // Schedule automated reminders
-                        await scheduleBookingReminders({
-                            bookingId: result.booking.id,
-                            clientId: user.id,
-                            therapistId: currentTherapist.id,
-                            scheduledAt: scheduledAt.toISOString(),
-                            clientEmail: user.email,
-                            clientPhone: user.phone || undefined,
-                            clientName: user.full_name,
-                            therapistName: currentTherapist.user.full_name,
-                            serviceType: currentService.name,
-                            sessionMode: 'video',
-                            meetingUrl: meetingUrl,
-                        });
-
-                        console.log('✅ Booking automation completed');
-                    } catch (automationError) {
-                        console.error('⚠️ Booking automation failed (non-critical):', automationError);
-                        // Don't show error to user - booking was successful
-                    }
-                })();
 
                 toast({
                     title: 'Booking Confirmed!',

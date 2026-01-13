@@ -23,7 +23,11 @@ import {
     FileText,
     LogOut,
     RefreshCw,
-    AlertCircle
+    AlertCircle,
+    X,
+    User,
+    Edit,
+    Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -68,8 +72,19 @@ export default function TherapistDashboard() {
         upcomingSessions: 0
     });
     const [loading, setLoading] = useState(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [therapistProfile, setTherapistProfile] = useState<any>(null);
     const [availabilityOpen, setAvailabilityOpen] = useState(false);
+    const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    const [availability, setAvailability] = useState<{ [key: string]: { enabled: boolean; start: string; end: string } }>({
+        monday: { enabled: true, start: '09:00', end: '17:00' },
+        tuesday: { enabled: true, start: '09:00', end: '17:00' },
+        wednesday: { enabled: true, start: '09:00', end: '17:00' },
+        thursday: { enabled: true, start: '09:00', end: '17:00' },
+        friday: { enabled: true, start: '09:00', end: '17:00' },
+        saturday: { enabled: false, start: '10:00', end: '14:00' },
+        sunday: { enabled: false, start: '10:00', end: '14:00' }
+    });
 
     // Redirect if not logged in
     useEffect(() => {
@@ -78,11 +93,11 @@ export default function TherapistDashboard() {
         }
     }, [user, authLoading, navigate]);
 
-    // Load real data from database
     useEffect(() => {
         if (user) {
             loadTherapistData();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     // Animate on load
@@ -147,6 +162,7 @@ export default function TherapistDashboard() {
                 .order('scheduled_at', { ascending: true });
 
             // Transform sessions data
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const sessionsData: SessionData[] = (todayBookings || []).map((booking: any) => ({
                 id: booking.id,
                 patient_name: booking.users?.full_name || 'Patient',
@@ -212,6 +228,32 @@ export default function TherapistDashboard() {
     const handleSignOut = async () => {
         await signOut();
         navigate('/');
+    };
+
+    const handleSaveAvailability = async () => {
+        try {
+            if (therapistProfile?.id) {
+                await supabase
+                    .from('therapists')
+                    .update({
+                        availability_schedule: availability,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', therapistProfile.id);
+            }
+            toast({
+                title: 'Availability Saved',
+                description: 'Your availability has been updated successfully.'
+            });
+            setAvailabilityOpen(false);
+        } catch (error) {
+            console.error('Error saving availability:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to save availability',
+                variant: 'destructive'
+            });
+        }
     };
 
     const handleStartSession = (sessionId: string) => {
@@ -385,20 +427,76 @@ export default function TherapistDashboard() {
                             <button className="relative p-2 rounded-full hover:bg-gray-100 transition-colors">
                                 <Bell className="w-5 h-5 text-gray-600" />
                             </button>
-                            <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50">
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-medium">
-                                    {user?.full_name?.charAt(0) || 'T'}
-                                </div>
-                                <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                                    {user?.full_name || 'Therapist'}
-                                </span>
+                            {/* Profile Dropdown */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                                    className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                                >
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-medium">
+                                        {user?.full_name?.charAt(0) || 'T'}
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                                        {user?.full_name || 'Therapist'}
+                                    </span>
+                                </button>
+                                {/* Dropdown Menu */}
+                                {profileMenuOpen && (
+                                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                                        <div className="px-4 py-3 border-b border-gray-100">
+                                            <p className="font-medium text-gray-900">{user?.full_name}</p>
+                                            <p className="text-sm text-gray-500">{user?.email}</p>
+                                            {therapistProfile?.rating && (
+                                                <div className="flex items-center gap-1 mt-1">
+                                                    <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                                                    <span className="text-sm font-medium">{therapistProfile.rating}</span>
+                                                    <span className="text-xs text-gray-400">({therapistProfile.total_reviews || 0} reviews)</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <Link
+                                            to="/profile"
+                                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                        >
+                                            <User className="w-4 h-4 text-gray-400" />
+                                            <span className="text-gray-700">My Profile</span>
+                                        </Link>
+                                        <Link
+                                            to="/profile?edit=true"
+                                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                        >
+                                            <Edit className="w-4 h-4 text-gray-400" />
+                                            <span className="text-gray-700">Edit Profile</span>
+                                        </Link>
+                                        <button
+                                            onClick={() => { setAvailabilityOpen(true); setProfileMenuOpen(false); }}
+                                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors w-full text-left"
+                                        >
+                                            <Clock className="w-4 h-4 text-gray-400" />
+                                            <span className="text-gray-700">Set Availability</span>
+                                        </button>
+                                        <Link
+                                            to="/settings"
+                                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                        >
+                                            <Settings className="w-4 h-4 text-gray-400" />
+                                            <span className="text-gray-700">Account Settings</span>
+                                        </Link>
+                                        <div className="border-t border-gray-100 mt-2 pt-2">
+                                            <button
+                                                onClick={handleSignOut}
+                                                className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 text-red-600 w-full text-left"
+                                            >
+                                                <LogOut className="w-4 h-4" />
+                                                <span>Sign Out</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <button
-                                onClick={handleSignOut}
-                                className="p-2 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                            >
-                                <LogOut className="w-5 h-5" />
-                            </button>
                         </div>
                     </div>
                 </header>
@@ -638,6 +736,103 @@ export default function TherapistDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Availability Modal */}
+            <AvailabilityModal
+                isOpen={availabilityOpen}
+                onClose={() => setAvailabilityOpen(false)}
+                availability={availability}
+                setAvailability={setAvailability}
+                onSave={handleSaveAvailability}
+            />
         </>
+    );
+}
+
+// Availability Modal Component
+function AvailabilityModal({
+    isOpen,
+    onClose,
+    availability,
+    setAvailability,
+    onSave
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    availability: { [key: string]: { enabled: boolean; start: string; end: string } };
+    setAvailability: React.Dispatch<React.SetStateAction<{ [key: string]: { enabled: boolean; start: string; end: string } }>>;
+    onSave: () => void;
+}) {
+    if (!isOpen) return null;
+
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+    const toggleDay = (day: string) => {
+        setAvailability(prev => ({
+            ...prev,
+            [day]: { ...prev[day], enabled: !prev[day].enabled }
+        }));
+    };
+
+    const updateTime = (day: string, field: 'start' | 'end', value: string) => {
+        setAvailability(prev => ({
+            ...prev,
+            [day]: { ...prev[day], [field]: value }
+        }));
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-auto">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <h2 className="text-xl font-semibold text-gray-900">Set Your Availability</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+                        <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                </div>
+                <div className="p-6 space-y-4">
+                    {days.map(day => (
+                        <div key={day} className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${availability[day].enabled ? 'bg-cyan-50 border border-cyan-200' : 'bg-gray-50 border border-gray-100'
+                            }`}>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={availability[day].enabled}
+                                    onChange={() => toggleDay(day)}
+                                    className="w-5 h-5 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                                />
+                                <span className={`font-medium capitalize w-24 ${availability[day].enabled ? 'text-gray-900' : 'text-gray-400'
+                                    }`}>{day}</span>
+                            </label>
+                            {availability[day].enabled && (
+                                <div className="flex items-center gap-2 ml-auto">
+                                    <input
+                                        type="time"
+                                        value={availability[day].start}
+                                        onChange={(e) => updateTime(day, 'start', e.target.value)}
+                                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-cyan-500 focus:border-cyan-500"
+                                    />
+                                    <span className="text-gray-400">to</span>
+                                    <input
+                                        type="time"
+                                        value={availability[day].end}
+                                        onChange={(e) => updateTime(day, 'end', e.target.value)}
+                                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-cyan-500 focus:border-cyan-500"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                <div className="flex gap-3 p-6 border-t border-gray-100">
+                    <Button variant="outline" onClick={onClose} className="flex-1">
+                        Cancel
+                    </Button>
+                    <Button onClick={onSave} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700">
+                        Save Availability
+                    </Button>
+                </div>
+            </div>
+        </div>
     );
 }

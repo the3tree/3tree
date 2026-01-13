@@ -53,8 +53,9 @@ export function DocumentManager({ documents, therapistId, therapistName, onRefre
             if (error) throw error;
             toast({ title: '✅ Document Approved', description: `${typeLabels[doc.document_type]} verified. Auto-deletes in 7 days.` });
             onRefresh();
-        } catch (err: any) {
-            toast({ title: 'Error', description: err.message, variant: 'destructive' });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
+            toast({ title: 'Error', description: message, variant: 'destructive' });
         } finally {
             setLoading(null);
         }
@@ -72,8 +73,9 @@ export function DocumentManager({ documents, therapistId, therapistName, onRefre
             if (error) throw error;
             toast({ title: '❌ Document Rejected', description: 'Therapist will be notified.' });
             onRefresh();
-        } catch (err: any) {
-            toast({ title: 'Error', description: err.message, variant: 'destructive' });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
+            toast({ title: 'Error', description: message, variant: 'destructive' });
         } finally {
             setLoading(null);
         }
@@ -87,8 +89,9 @@ export function DocumentManager({ documents, therapistId, therapistName, onRefre
             if (error) throw error;
             toast({ title: 'Document Deleted' });
             onRefresh();
-        } catch (err: any) {
-            toast({ title: 'Error', description: err.message, variant: 'destructive' });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Unknown error';
+            toast({ title: 'Error', description: message, variant: 'destructive' });
         } finally {
             setLoading(null);
         }

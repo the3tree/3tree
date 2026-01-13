@@ -14,7 +14,7 @@ async function sendNotification(params: {
     title: string;
     message: string;
     link?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }): Promise<void> {
     await supabase.from('notifications').insert({
         user_id: params.userId,
@@ -327,7 +327,7 @@ async function sendBookingEmail(params: {
     to: string;
     subject: string;
     template: string;
-    data: Record<string, any>;
+    data: Record<string, unknown>;
 }): Promise<void> {
     // TODO: Implement with actual email service (SendGrid, Resend, etc.)
     // For now, log the email
@@ -359,7 +359,7 @@ async function sendBookingSMS(params: {
 }): Promise<{ success: boolean; error?: string }> {
     // Format phone number (ensure it starts with country code)
     const formattedPhone = formatPhoneNumber(params.to);
-    
+
     console.log('📱 SMS to', formattedPhone, ':', params.message);
 
     // If SMS Edge Function is configured, call it
@@ -371,7 +371,7 @@ async function sendBookingSMS(params: {
                 templateId: params.templateId,
             },
         });
-        
+
         if (error) throw error;
         return { success: true };
     } catch (error) {
@@ -386,17 +386,17 @@ async function sendBookingSMS(params: {
 function formatPhoneNumber(phone: string): string {
     // Remove all non-numeric characters
     let cleaned = phone.replace(/\D/g, '');
-    
+
     // Add India country code if not present and starts with valid Indian prefix
     if (cleaned.length === 10 && (cleaned.startsWith('6') || cleaned.startsWith('7') || cleaned.startsWith('8') || cleaned.startsWith('9'))) {
         cleaned = '91' + cleaned;
     }
-    
+
     // Ensure + prefix
     if (!cleaned.startsWith('+')) {
         cleaned = '+' + cleaned;
     }
-    
+
     return cleaned;
 }
 
@@ -430,9 +430,9 @@ export async function sendSessionReminderSMS(data: {
 }): Promise<void> {
     const scheduledTime = new Date(data.scheduledAt);
     const timeStr = scheduledTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-    
+
     let message: string;
-    
+
     if (data.minutesBefore >= 60 * 24) {
         // 24 hour reminder
         message = `Hi ${data.clientName}, this is a reminder for your session with ${data.therapistName} tomorrow at ${timeStr}. We look forward to seeing you! - The 3 Tree`;
@@ -443,7 +443,7 @@ export async function sendSessionReminderSMS(data: {
         // 15 min reminder
         message = `Hi ${data.clientName}, your session starts in ${data.minutesBefore} minutes. Join now: ${data.meetingUrl} - The 3 Tree`;
     }
-    
+
     await sendBookingSMS({
         to: data.clientPhone,
         message: message,

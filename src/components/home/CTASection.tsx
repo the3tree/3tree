@@ -54,10 +54,10 @@ export default function CTASection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-20 lg:py-28 bg-gradient-to-br from-slate-50 via-white to-cyan-50/30 relative overflow-hidden">
+    <section ref={sectionRef} className="py-20 lg:py-28 bg-background relative overflow-hidden">
       {/* Decorative Background */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '4s' }} />
       </div>
 
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
@@ -96,13 +96,13 @@ export default function CTASection() {
           {/* Phone */}
           <a
             href="tel:+1234567890"
-            className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-cyan-200/50 hover:-translate-y-1 transition-all duration-300 group"
+            className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 group"
           >
-            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/20">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-primary/20">
               <Phone className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Call Us</p>
+              <p className="font-semibold text-gray-900 group-hover:text-primary transition-colors">Call Us</p>
               <p className="text-gray-500 text-sm">+91 123 456 7890</p>
             </div>
           </a>
@@ -110,24 +110,24 @@ export default function CTASection() {
           {/* Email */}
           <a
             href="mailto:hello@the3tree.com"
-            className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-cyan-200/50 hover:-translate-y-1 transition-all duration-300 group"
+            className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 group"
           >
-            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/20">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-primary/20">
               <Mail className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Email Us</p>
+              <p className="font-semibold text-gray-900 group-hover:text-primary transition-colors">Email Us</p>
               <p className="text-gray-500 text-sm">hello@the3tree.com</p>
             </div>
           </a>
 
           {/* Location */}
-          <div className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-cyan-200/50 hover:-translate-y-1 transition-all duration-300 group">
-            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/20">
+          <div className="cta-card flex items-center gap-4 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 group">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-primary/20">
               <MapPin className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Visit Us</p>
+              <p className="font-semibold text-gray-900 group-hover:text-primary transition-colors">Visit Us</p>
               <p className="text-gray-500 text-sm">Online & In-Person</p>
             </div>
           </div>

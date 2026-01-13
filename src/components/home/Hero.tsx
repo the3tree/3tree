@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Phone, Calendar, Sparkles } from "lucide-react";
+import { ArrowRight, Phone, Calendar, Sparkles, Heart } from "lucide-react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Lottie from 'lottie-react';
 
 gsap.registerPlugin(ScrollTrigger);
 
 /**
- * Hero Section - Premium Design with Full-Width Video at Bottom
- * Clean, professional layout with content above and video below
+ * Hero Section - Premium Design with Full-Screen Video Background
+ * Video plays behind the content with overlay for readability
  */
 
 const emotionalWords = [
@@ -26,6 +27,7 @@ export default function Hero() {
   const [wordIndex, setWordIndex] = useState(0);
   const [displayWord, setDisplayWord] = useState(emotionalWords[0]);
   const [videoError, setVideoError] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
 
   // Word rotation animation
   useEffect(() => {
@@ -65,8 +67,9 @@ export default function Hero() {
       try {
         video.muted = true; // Ensure muted for autoplay
         await video.play();
+        setVideoLoaded(true);
       } catch {
-        console.log("Video autoplay blocked, trying with user interaction");
+        console.log("Video autoplay blocked");
         setVideoError(true);
       }
     };
@@ -76,6 +79,7 @@ export default function Hero() {
       playVideo();
     } else {
       video.addEventListener('canplay', playVideo, { once: true });
+      video.addEventListener('loadeddata', () => setVideoLoaded(true), { once: true });
     }
 
     return () => {
@@ -117,37 +121,7 @@ export default function Hero() {
           { opacity: 0, y: 25, scale: 0.95 },
           { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.12 },
           "-=0.3"
-        )
-        .fromTo(
-          ".hero-video-section",
-          { opacity: 0, y: 60 },
-          { opacity: 1, y: 0, duration: 1, ease: "power3.out" },
-          "-=0.5"
         );
-
-      // Parallax scroll effects for background
-      gsap.to(".parallax-slow", {
-        yPercent: -30,
-        ease: "none",
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: 1,
-        },
-      });
-
-      gsap.to(".parallax-medium", {
-        yPercent: -50,
-        ease: "none",
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: 1.5,
-        },
-      });
-
     }, heroRef);
 
     return () => ctx.revert();
@@ -156,115 +130,106 @@ export default function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative overflow-hidden bg-gradient-to-br from-[#F8FAFC] via-white to-cyan-50/30"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
     >
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="parallax-slow absolute top-[10%] right-[5%] w-[600px] h-[600px] bg-gradient-to-br from-cyan-200/40 to-teal-100/30 rounded-full blur-[120px]" />
-        <div className="parallax-medium absolute bottom-[5%] left-[2%] w-[500px] h-[500px] bg-gradient-to-tr from-blue-100/40 to-cyan-50/30 rounded-full blur-[100px]" />
-      </div>
+      {/* Full-Screen Video Background */}
+      <div className="absolute inset-0 z-0">
+        {/* Video Element */}
+        <video
+          ref={videoRef}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          onError={() => setVideoError(true)}
+          poster="/images/hero-poster.jpg"
+        >
+          <source src="/video.mp4" type="video/mp4" />
+          <source src="/video.webm" type="video/webm" />
+        </video>
 
-      {/* Hero Content Section */}
-      <div className="container mx-auto px-6 lg:px-8 pt-28 pb-12 lg:pt-32 lg:pb-16">
-        <div className="max-w-3xl mx-auto text-center">
-          {/* Badge with sparkle */}
-          <div className="hero-badge mb-6">
-            <span className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500/10 to-teal-500/10 border border-cyan-200/50 rounded-full text-sm font-medium text-cyan-700 shadow-sm">
-              <Sparkles className="w-4 h-4 text-cyan-500" />
-              Now accepting new clients
-            </span>
-          </div>
-
-          {/* Main Heading with Animated Word */}
-          <div className="space-y-2 mb-6">
-            <h1 className="font-serif text-[2.5rem] sm:text-5xl lg:text-[3.5rem] xl:text-6xl leading-[1.08] tracking-tight text-gray-900">
-              <span className="hero-title-line block">We Help You Feel</span>
-              <span className="emotional-word hero-title-line block mt-1 bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent font-bold">
-                {displayWord}
-              </span>
-            </h1>
-          </div>
-
-          {/* Subtitle */}
-          <div className="hero-subtitle space-y-3 mb-8">
-            <p className="text-xl text-gray-600 leading-relaxed max-w-2xl mx-auto">
-              A welcoming space to explore your thoughts, heal at your
-              pace, and feel truly heard.
-            </p>
-            <p className="text-lg font-medium bg-gradient-to-r from-gray-700 to-gray-600 bg-clip-text text-transparent italic">
-              "Self Care isn't selfish"
-            </p>
-          </div>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              asChild
-              variant="pill"
-              size="lg"
-              className="hero-cta group h-14 px-8 text-base font-semibold shadow-xl hover:shadow-2xl"
-            >
-              <Link to="/booking" className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Book a Session
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </Button>
-            <Button
-              variant="pill-outline"
-              size="lg"
-              asChild
-              className="hero-cta h-14 px-6 text-base font-medium group"
-            >
-              <a href="tel:+1234567890" className="flex items-center gap-2">
-                <Phone className="w-5 h-5 text-cyan-600 group-hover:text-white group-hover:animate-pulse" />
-                Speak to Someone
-              </a>
-            </Button>
-          </div>
+        {/* Fallback Background if Video Fails or Loading */}
+        <div className={`absolute inset-0 bg-gradient-to-br from-[#161A30] via-[#1f2640] to-[#0f1419] transition-opacity duration-1000 ${videoLoaded && !videoError ? 'opacity-0' : 'opacity-100'}`}>
+          {/* Animated gradient orbs for visual interest when video doesn't load */}
+          <div className="absolute top-1/4 right-1/4 w-[500px] h-[500px] bg-[#2d3a54]/30 rounded-full blur-[150px] animate-pulse" />
+          <div className="absolute bottom-1/4 left-1/4 w-[400px] h-[400px] bg-[#3d4a64]/25 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
+
+        {/* Dark Overlay for Text Readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+
+        {/* Additional gradient for depth */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30" />
       </div>
 
-      {/* Full-Width Video Section at Bottom */}
-      <div className="hero-video-section w-full">
-        <div className="relative w-full aspect-[16/9] lg:aspect-[21/9] overflow-hidden">
-          {/* Video Element */}
-          <video
-            ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover"
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            onError={() => setVideoError(true)}
-            poster="/images/hero-poster.jpg"
+      {/* Content Container - Centered */}
+      <div className="relative z-20 container mx-auto px-4 lg:px-8 h-full flex flex-col items-center justify-center text-center">
+
+        {/* Floating Animation Badge */}
+        <div className="absolute top-20 right-20 hidden lg:flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 animate-pulse">
+          <Heart className="w-4 h-4 text-pink-400 fill-pink-400 animate-bounce" />
+          <span className="text-white text-sm font-medium">Mental Wellness</span>
+        </div>
+        {/* Badge with sparkle */}
+        <div className="hero-badge mb-6">
+          <span className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-sm font-medium text-white shadow-lg">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            Now accepting new clients
+          </span>
+        </div>
+
+        {/* Main Heading with Animated Word */}
+        <div className="space-y-2 mb-6">
+          <h1 className="font-serif text-[2.5rem] sm:text-5xl lg:text-[3.5rem] xl:text-6xl leading-[1.08] tracking-tight text-white drop-shadow-lg">
+            <span className="hero-title-line block">We Help You Feel</span>
+            <span className="emotional-word hero-title-line block mt-1 bg-gradient-to-r from-white via-gray-200 to-white bg-clip-text text-transparent font-bold">
+              {displayWord}
+            </span>
+          </h1>
+        </div>
+
+        {/* Subtitle */}
+        <div className="hero-subtitle space-y-3 mb-8">
+          <p className="text-xl text-white/90 leading-relaxed max-w-2xl mx-auto drop-shadow-md">
+            A welcoming space to explore your thoughts, heal at your
+            pace, and feel truly heard.
+          </p>
+          <p className="text-lg font-medium text-gray-300 italic drop-shadow-md">
+            "Self Care isn't selfish"
+          </p>
+        </div>
+
+        {/* CTAs */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button
+            asChild
+            size="lg"
+            className="hero-cta group h-14 px-8 text-base font-semibold bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-xl hover:shadow-2xl hover:shadow-emerald-500/50 border-0 rounded-full transition-all duration-300"
           >
-            <source src="/video.mp4" type="video/mp4" />
-            <source src="/video.webm" type="video/webm" />
-          </video>
+            <Link to="/booking" className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Book a Session
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </Button>
+          <Button
+            size="lg"
+            asChild
+            className="hero-cta h-14 px-6 text-base font-medium bg-white/10 backdrop-blur-sm border border-white/30 text-white hover:bg-white/20 hover:border-white/50 rounded-full transition-all duration-300"
+          >
+            <a href="tel:+1234567890" className="flex items-center gap-2">
+              <Phone className="w-5 h-5 text-white" />
+              Speak to Someone
+            </a>
+          </Button>
+        </div>
 
-          {/* Fallback Background if Video Fails */}
-          {videoError && (
-            <div className="absolute inset-0 bg-gradient-to-br from-[#1a2744] via-[#2d3a54] to-[#161A30] flex items-center justify-center">
-              <div className="text-center text-white/80">
-                <span className="text-6xl mb-4 block">🌳</span>
-                <p className="text-lg font-medium">The 3 Tree Mental Wellness</p>
-              </div>
-            </div>
-          )}
-
-          {/* Gradient Overlays for Smooth Blending */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/20 pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#F8FAFC] to-transparent pointer-events-none" />
-
-          {/* Optional: Content Overlay on Video */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center">
-              <p className="text-white/90 text-lg md:text-xl font-medium drop-shadow-lg">
-                Your Journey to Wellness Starts Here
-              </p>
-            </div>
+        {/* Scroll indicator */}
+        <div className="mt-16 animate-bounce">
+          <div className="w-6 h-10 mx-auto border-2 border-white/30 rounded-full flex items-start justify-center p-1">
+            <div className="w-1.5 h-3 bg-white/50 rounded-full animate-pulse" />
           </div>
         </div>
       </div>

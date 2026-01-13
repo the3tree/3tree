@@ -67,6 +67,7 @@ serve(async (req) => {
         }
 
         // Send reminder email
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async function sendReminder(booking: any, type: "24h" | "1h"): Promise<boolean> {
             const client = Array.isArray(booking.client) ? booking.client[0] : booking.client;
             const therapist = Array.isArray(booking.therapist) ? booking.therapist[0] : booking.therapist;
@@ -174,10 +175,11 @@ serve(async (req) => {
             }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Reminder function error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: errorMessage }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }

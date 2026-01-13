@@ -133,11 +133,11 @@ export default function FindTherapist() {
 
             <Layout>
                 {/* Hero Section */}
-                <section className="bg-gradient-to-b from-cyan-50 to-white pt-28 pb-12">
+                <section className="bg-[#F8FAFC] pt-28 pb-12">
                     <div className="container mx-auto px-4 lg:px-8">
                         <div className="text-center max-w-3xl mx-auto mb-10">
                             <h1 className="text-4xl md:text-5xl font-serif text-gray-900 mb-4">
-                                Find Your <span className="text-cyan-600">Perfect Match</span>
+                                Find Your <span className="text-[#161A30]">Perfect Match</span>
                             </h1>
                             <p className="text-lg text-gray-600">
                                 Our carefully selected therapists are here to support your unique journey.
@@ -154,7 +154,7 @@ export default function FindTherapist() {
                                     placeholder="Search by name, specialty, or keyword..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-14 pr-4 py-4 rounded-2xl border-2 border-gray-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100 text-lg outline-none transition-all shadow-sm"
+                                    className="w-full pl-14 pr-4 py-4 rounded-2xl border-2 border-gray-200 focus:border-[#161A30] focus:ring-4 focus:ring-[#161A30]/10 text-lg outline-none transition-all shadow-sm"
                                 />
                                 {searchQuery && (
                                     <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full">
@@ -179,7 +179,7 @@ export default function FindTherapist() {
                                             Filters
                                         </h3>
                                         {activeFilterCount > 0 && (
-                                            <button onClick={clearFilters} className="text-sm text-cyan-600 hover:underline">
+                                            <button onClick={clearFilters} className="text-sm text-[#161A30] hover:underline">
                                                 Clear all
                                             </button>
                                         )}
@@ -195,7 +195,7 @@ export default function FindTherapist() {
                                                         type="checkbox"
                                                         checked={selectedSpecialties.includes(specialty)}
                                                         onChange={() => toggleSpecialty(specialty)}
-                                                        className="w-4 h-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
+                                                        className="w-4 h-4 rounded border-gray-300 text-[#161A30] focus:ring-[#161A30]"
                                                     />
                                                     <span className="text-sm text-gray-600 group-hover:text-gray-900">{specialty}</span>
                                                 </label>
@@ -212,8 +212,8 @@ export default function FindTherapist() {
                                                     key={language}
                                                     onClick={() => toggleLanguage(language)}
                                                     className={`px-3 py-1 text-sm rounded-full transition-colors ${selectedLanguages.includes(language)
-                                                            ? 'bg-cyan-500 text-white'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                        ? 'bg-[#161A30] text-white'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                         }`}
                                                 >
                                                     {language}
@@ -255,7 +255,7 @@ export default function FindTherapist() {
                                             <span className="font-semibold text-gray-900">{filteredTherapists.length}</span> therapists found
                                         </p>
                                         {activeFilterCount > 0 && (
-                                            <span className="px-2 py-1 bg-cyan-100 text-cyan-700 text-xs rounded-full">
+                                            <span className="px-2 py-1 bg-[#161A30]/10 text-[#161A30] text-xs rounded-full">
                                                 {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
                                             </span>
                                         )}
@@ -271,7 +271,7 @@ export default function FindTherapist() {
                                             <Filter className="w-4 h-4 mr-2" />
                                             Filters
                                             {activeFilterCount > 0 && (
-                                                <span className="ml-2 w-5 h-5 bg-cyan-500 text-white text-xs rounded-full flex items-center justify-center">
+                                                <span className="ml-2 w-5 h-5 bg-[#161A30] text-white text-xs rounded-full flex items-center justify-center">
                                                     {activeFilterCount}
                                                 </span>
                                             )}
@@ -280,8 +280,8 @@ export default function FindTherapist() {
                                         {/* Sort Dropdown */}
                                         <select
                                             value={sortBy}
-                                            onChange={(e) => setSortBy(e.target.value as any)}
-                                            className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500"
+                                            onChange={(e) => setSortBy(e.target.value as 'rating' | 'experience' | 'price_low' | 'price_high')}
+                                            className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#161A30]"
                                         >
                                             <option value="rating">Highest Rated</option>
                                             <option value="experience">Most Experienced</option>
@@ -329,13 +329,13 @@ export default function FindTherapist() {
                 </section>
 
                 {/* CTA Section */}
-                <section className="py-16 bg-gradient-to-r from-cyan-500 to-blue-600">
+                <section className="py-16 bg-gradient-to-r from-[#161A30] to-[#2d3a54]">
                     <div className="container mx-auto px-4 lg:px-8 text-center">
                         <h2 className="text-3xl font-serif text-white mb-4">Not Sure Where to Start?</h2>
-                        <p className="text-cyan-100 mb-6 max-w-xl mx-auto">
+                        <p className="text-gray-300 mb-6 max-w-xl mx-auto">
                             Book a free 15-minute consultation and we'll help match you with the right therapist.
                         </p>
-                        <Button size="lg" className="bg-white text-cyan-600 hover:bg-gray-100">
+                        <Button size="lg" className="bg-white text-[#161A30] hover:bg-gray-100">
                             Book Free Consultation
                             <ChevronRight className="w-4 h-4 ml-2" />
                         </Button>
@@ -363,8 +363,8 @@ export default function FindTherapist() {
                                         key={specialty}
                                         onClick={() => toggleSpecialty(specialty)}
                                         className={`px-3 py-1.5 text-sm rounded-full transition-colors ${selectedSpecialties.includes(specialty)
-                                                ? 'bg-cyan-500 text-white'
-                                                : 'bg-gray-100 text-gray-600'
+                                            ? 'bg-[#161A30] text-white'
+                                            : 'bg-gray-100 text-gray-600'
                                             }`}
                                     >
                                         {specialty}
@@ -382,8 +382,8 @@ export default function FindTherapist() {
                                         key={language}
                                         onClick={() => toggleLanguage(language)}
                                         className={`px-3 py-1.5 text-sm rounded-full transition-colors ${selectedLanguages.includes(language)
-                                                ? 'bg-cyan-500 text-white'
-                                                : 'bg-gray-100 text-gray-600'
+                                            ? 'bg-[#161A30] text-white'
+                                            : 'bg-gray-100 text-gray-600'
                                             }`}
                                     >
                                         {language}
@@ -416,7 +416,7 @@ function TherapistCard({ therapist }: { therapist: TherapistWithDetails }) {
 
     return (
         <Link to={`/therapist/${therapist.id}`} className="block group">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-cyan-200 transition-all duration-300">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-[#161A30]/20 transition-all duration-300">
                 <div className="flex gap-4">
                     {/* Avatar */}
                     <div className="relative">
@@ -427,7 +427,7 @@ function TherapistCard({ therapist }: { therapist: TherapistWithDetails }) {
                                 className="w-20 h-20 rounded-full object-cover"
                             />
                         ) : (
-                            <div className="w-20 h-20 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-medium">
+                            <div className="w-20 h-20 bg-gradient-to-br from-[#161A30] to-[#2d3a54] rounded-full flex items-center justify-center text-white text-2xl font-medium">
                                 {therapist.user?.full_name?.charAt(0) || 'T'}
                             </div>
                         )}
@@ -440,7 +440,7 @@ function TherapistCard({ therapist }: { therapist: TherapistWithDetails }) {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 group-hover:text-cyan-600 transition-colors">
+                        <h3 className="font-semibold text-gray-900 group-hover:text-[#161A30] transition-colors">
                             {therapist.user?.full_name || 'Therapist'}
                         </h3>
                         <p className="text-sm text-gray-500 truncate">
@@ -465,7 +465,7 @@ function TherapistCard({ therapist }: { therapist: TherapistWithDetails }) {
                 <div className="mt-4">
                     <div className="flex flex-wrap gap-1.5">
                         {therapist.specialties?.slice(0, 3).map((specialty, i) => (
-                            <span key={i} className="px-2 py-0.5 bg-cyan-50 text-cyan-700 text-xs rounded-full">
+                            <span key={i} className="px-2 py-0.5 bg-[#161A30]/10 text-[#161A30] text-xs rounded-full">
                                 {specialty}
                             </span>
                         ))}

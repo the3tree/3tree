@@ -89,9 +89,10 @@ export async function uploadFile(
             },
             error: null,
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Upload failed:', error);
-        return { data: null, error: error.message };
+        const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+        return { data: null, error: errorMessage };
     }
 }
 
@@ -151,8 +152,9 @@ export async function deleteFile(
         const { error } = await supabase.storage.from(bucket).remove([path]);
         if (error) return { error: error.message };
         return { error: null };
-    } catch (error: any) {
-        return { error: error.message };
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Delete failed';
+        return { error: errorMessage };
     }
 }
 
@@ -171,8 +173,9 @@ export async function getSignedUrl(
 
         if (error) return { url: null, error: error.message };
         return { url: data.signedUrl, error: null };
-    } catch (error: any) {
-        return { url: null, error: error.message };
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to get signed URL';
+        return { url: null, error: errorMessage };
     }
 }
 

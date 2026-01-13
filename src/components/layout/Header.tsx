@@ -120,7 +120,7 @@ export default function Header() {
             }}
           />
           <div className="flex flex-col">
-            <span className="font-serif text-xl font-bold text-[#161A30] tracking-tight group-hover:text-cyan-600 transition-colors">
+            <span className="font-serif text-xl font-bold text-[#161A30] tracking-tight group-hover:text-[#2d3a54] transition-colors">
               The 3 Tree
             </span>
             <span className="text-[10px] text-gray-600 tracking-wider uppercase -mt-0.5 font-medium">
@@ -221,7 +221,7 @@ export default function Header() {
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-medium text-sm">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#161A30] to-[#2d3a54] flex items-center justify-center text-white font-medium text-sm">
                         {user.full_name?.charAt(0) || user.email?.charAt(0) || "U"}
                       </div>
                     )}

@@ -58,7 +58,17 @@ function SuperAdminDashboardContent() {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
     const [showRejectModal, setShowRejectModal] = useState(false);
-    const [documents, setDocuments] = useState<any[]>([]);
+    const [documents, setDocuments] = useState<{
+        id: string;
+        therapist_id: string;
+        document_type: 'license' | 'qualification' | 'id_proof';
+        file_url: string;
+        file_name: string;
+        status: 'pending' | 'approved' | 'rejected';
+        uploaded_at: string;
+        verified_at?: string;
+        notes?: string;
+    }[]>([]);
 
     // Chart data - populated from real database
     const [chartData, setChartData] = useState({
@@ -82,6 +92,7 @@ function SuperAdminDashboardContent() {
             return;
         }
         fetchAllData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate]);
 
     useEffect(() => {
@@ -159,8 +170,9 @@ function SuperAdminDashboardContent() {
                 { label: 'Total Users', value: usersData?.length || 0, status: 'good' as const },
             ]);
 
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+            toast({ title: "Error", description: errorMessage, variant: "destructive" });
         } finally {
             setLoading(false);
         }
@@ -178,8 +190,9 @@ function SuperAdminDashboardContent() {
             toast({ title: verify ? "✅ Therapist Verified" : "❌ Application Rejected" });
             fetchAllData();
             setSelectedTherapist(null); setShowRejectModal(false); setRejectionReason("");
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Operation failed';
+            toast({ title: "Error", description: errorMessage, variant: "destructive" });
         } finally {
             setActionLoading(null);
         }

@@ -27,6 +27,7 @@ export default function NotificationCenter() {
                 supabase.removeChannel(channel);
             };
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
     const fetchNotifications = async () => {

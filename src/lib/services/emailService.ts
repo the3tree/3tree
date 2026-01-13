@@ -2,40 +2,41 @@
 import { supabase } from '@/lib/supabase';
 
 interface EmailPayload {
-    to: string;
-    subject: string;
-    html: string;
-    from?: string;
+  to: string;
+  subject: string;
+  html: string;
+  from?: string;
 }
 
 interface EmailResult {
-    success: boolean;
-    messageId?: string;
-    error?: string;
+  success: boolean;
+  messageId?: string;
+  error?: string;
 }
 
 // Send email via Edge Function (which uses Resend)
 export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
-    try {
-        const { data, error } = await supabase.functions.invoke('send-email', {
-            body: payload,
-        });
+  try {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: payload,
+    });
 
-        if (error) throw error;
-        return { success: true, messageId: data?.id };
-    } catch (error: any) {
-        console.error('Email send failed:', error);
-        // Fallback: log email for development
-        console.log('📧 EMAIL:', { to: payload.to, subject: payload.subject });
-        return { success: false, error: error.message };
-    }
+    if (error) throw error;
+    return { success: true, messageId: data?.id };
+  } catch (error: unknown) {
+    console.error('Email send failed:', error);
+    // Fallback: log email for development
+    console.log('📧 EMAIL:', { to: payload.to, subject: payload.subject });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send email';
+    return { success: false, error: errorMessage };
+  }
 }
 
 // Email Templates
 export const emailTemplates = {
-    therapistVerified: (name: string) => ({
-        subject: '🎉 Your The 3 Tree Application is Approved!',
-        html: `
+  therapistVerified: (name: string) => ({
+    subject: '🎉 Your The 3 Tree Application is Approved!',
+    html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #0ea5e9, #3b82f6); padding: 30px; text-align: center;">
           <h1 style="color: white; margin: 0;">Welcome to The 3 Tree!</h1>
@@ -57,11 +58,11 @@ export const emailTemplates = {
         </div>
       </div>
     `,
-    }),
+  }),
 
-    therapistRejected: (name: string, reason: string) => ({
-        subject: 'Update on Your The 3 Tree Application',
-        html: `
+  therapistRejected: (name: string, reason: string) => ({
+    subject: 'Update on Your The 3 Tree Application',
+    html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #374151; padding: 30px; text-align: center;">
           <h1 style="color: white; margin: 0;">Application Update</h1>
@@ -82,11 +83,11 @@ export const emailTemplates = {
         </div>
       </div>
     `,
-    }),
+  }),
 
-    bookingConfirmation: (patientName: string, therapistName: string, dateTime: string, meetingUrl?: string) => ({
-        subject: `Booking Confirmed with ${therapistName}`,
-        html: `
+  bookingConfirmation: (patientName: string, therapistName: string, dateTime: string, meetingUrl?: string) => ({
+    subject: `Booking Confirmed with ${therapistName}`,
+    html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px; text-align: center;">
           <h1 style="color: white; margin: 0;">Booking Confirmed!</h1>
@@ -108,11 +109,11 @@ export const emailTemplates = {
         </div>
       </div>
     `,
-    }),
+  }),
 
-    bookingReminder: (patientName: string, therapistName: string, dateTime: string) => ({
-        subject: `Reminder: Session with ${therapistName} Tomorrow`,
-        html: `
+  bookingReminder: (patientName: string, therapistName: string, dateTime: string) => ({
+    subject: `Reminder: Session with ${therapistName} Tomorrow`,
+    html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 30px; text-align: center;">
           <h1 style="color: white; margin: 0;">Session Reminder</h1>
@@ -128,11 +129,11 @@ export const emailTemplates = {
         </div>
       </div>
     `,
-    }),
+  }),
 
-    passwordReset: (name: string, resetLink: string) => ({
-        subject: 'Reset Your Password - The 3 Tree',
-        html: `
+  passwordReset: (name: string, resetLink: string) => ({
+    subject: 'Reset Your Password - The 3 Tree',
+    html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #374151; padding: 30px; text-align: center;">
           <h1 style="color: white; margin: 0;">Password Reset</h1>
@@ -151,54 +152,54 @@ export const emailTemplates = {
         </div>
       </div>
     `,
-    }),
+  }),
 };
 
 // Send therapist verification email
 export async function sendVerificationEmail(
-    email: string,
-    name: string,
-    approved: boolean,
-    reason?: string
+  email: string,
+  name: string,
+  approved: boolean,
+  reason?: string
 ): Promise<EmailResult> {
-    const template = approved
-        ? emailTemplates.therapistVerified(name)
-        : emailTemplates.therapistRejected(name, reason || 'Not specified');
+  const template = approved
+    ? emailTemplates.therapistVerified(name)
+    : emailTemplates.therapistRejected(name, reason || 'Not specified');
 
-    return sendEmail({
-        to: email,
-        subject: template.subject,
-        html: template.html,
-    });
+  return sendEmail({
+    to: email,
+    subject: template.subject,
+    html: template.html,
+  });
 }
 
 // Send booking confirmation
 export async function sendBookingConfirmationEmail(
-    email: string,
-    patientName: string,
-    therapistName: string,
-    dateTime: string,
-    meetingUrl?: string
+  email: string,
+  patientName: string,
+  therapistName: string,
+  dateTime: string,
+  meetingUrl?: string
 ): Promise<EmailResult> {
-    const template = emailTemplates.bookingConfirmation(patientName, therapistName, dateTime, meetingUrl);
-    return sendEmail({ to: email, ...template });
+  const template = emailTemplates.bookingConfirmation(patientName, therapistName, dateTime, meetingUrl);
+  return sendEmail({ to: email, ...template });
 }
 
 // Send booking reminder
 export async function sendBookingReminderEmail(
-    email: string,
-    patientName: string,
-    therapistName: string,
-    dateTime: string
+  email: string,
+  patientName: string,
+  therapistName: string,
+  dateTime: string
 ): Promise<EmailResult> {
-    const template = emailTemplates.bookingReminder(patientName, therapistName, dateTime);
-    return sendEmail({ to: email, ...template });
+  const template = emailTemplates.bookingReminder(patientName, therapistName, dateTime);
+  return sendEmail({ to: email, ...template });
 }
 
 export default {
-    sendEmail,
-    sendVerificationEmail,
-    sendBookingConfirmationEmail,
-    sendBookingReminderEmail,
-    emailTemplates,
+  sendEmail,
+  sendVerificationEmail,
+  sendBookingConfirmationEmail,
+  sendBookingReminderEmail,
+  emailTemplates,
 };

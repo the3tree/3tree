@@ -12,8 +12,10 @@ import {
   HeartHandshake,
   CheckCircle2
 } from "lucide-react";
+import LottieAnimation from "@/components/ui/LottieAnimation";
 
 gsap.registerPlugin(ScrollTrigger);
+
 
 const features = [
   {
@@ -155,7 +157,7 @@ export default function WhyChooseUs() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-20 lg:py-28 bg-slate-50 relative overflow-hidden">
+    <section ref={sectionRef} className="py-20 lg:py-28 bg-[#F8FAFC] relative overflow-hidden">
       {/* Subtle Background Pattern */}
       <div className="absolute inset-0 opacity-[0.015]">
         <div
@@ -169,17 +171,17 @@ export default function WhyChooseUs() {
 
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          {/* Left - Image */}
+          {/* Left - Animation */}
           <div className="why-image relative order-2 lg:order-1">
-            {/* Main Image */}
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-              <img
-                src="https://images.unsplash.com/photo-1573497620053-ea5300f94f21?w=700&h=850&fit=crop"
-                alt="Compassionate therapy session"
-                className="w-full aspect-[4/5] object-cover"
+            {/* Main Animation Container - Clean background */}
+            <div className="relative rounded-3xl overflow-hidden">
+              <LottieAnimation
+                src="https://assets2.lottiefiles.com/packages/lf20_touohxv0.json"
+                className="w-full h-auto min-h-[280px] lg:min-h-[380px]"
+                loop={true}
+                autoplay={true}
+                speed={0.7}
               />
-              {/* Subtle overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#1a2744]/20 to-transparent" />
             </div>
 
             {/* Floating Stats Card */}
@@ -199,8 +201,8 @@ export default function WhyChooseUs() {
             </div>
 
             {/* Decorative Elements - Minimal & Professional */}
-            <div className="absolute -top-4 -left-4 w-20 h-20 bg-primary/10 rounded-xl -z-10" />
-            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-cyan-100/50 rounded-full -z-10 blur-sm" />
+            <div className="absolute -top-4 -left-4 w-20 h-20 bg-primary/10 rounded-xl -z-10 animate-pulse" style={{ animationDuration: '3s' }} />
+            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-primary/5 rounded-full -z-10 blur-sm" />
           </div>
 
           {/* Right - Content */}
@@ -224,13 +226,13 @@ export default function WhyChooseUs() {
               {features.map((feature) => (
                 <div
                   key={feature.title}
-                  className="feature-item flex items-start gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-300"
+                  className="feature-item flex items-start gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-lg hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
                 >
-                  <div className="flex-shrink-0 w-10 h-10 bg-[#1a2744] rounded-lg flex items-center justify-center">
+                  <div className="flex-shrink-0 w-10 h-10 bg-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                     <feature.icon className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-1 text-sm">
+                    <h4 className="font-semibold text-gray-900 mb-1 text-sm group-hover:text-primary transition-colors">
                       {feature.title}
                     </h4>
                     <p className="text-xs text-gray-500 leading-relaxed">

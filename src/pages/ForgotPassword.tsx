@@ -47,9 +47,10 @@ export default function ForgotPassword() {
                 });
             }
         } catch (err) {
+            console.error("Forgot password error:", err);
             toast({
-                title: "Error",
-                description: "An unexpected error occurred. Please try again.",
+                title: "Something went wrong",
+                description: "Unable to send reset link. Please try again later.",
                 variant: "destructive",
             });
         } finally {
@@ -64,7 +65,7 @@ export default function ForgotPassword() {
                 <meta name="description" content="Reset your password to regain access to your The 3 Tree account." />
             </Helmet>
             <Layout>
-                <section className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/30 py-20 pt-28 flex items-center">
+                <section className="min-h-screen bg-[#F8FAFC] py-20 pt-28 flex items-center">
                     <div className="container mx-auto px-4">
                         <div className="max-w-md mx-auto">
                             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 lg:p-10 shadow-xl border border-gray-100">

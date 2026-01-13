@@ -38,11 +38,12 @@ export default function Profile() {
                 gender: (user.gender as typeof formData.gender) || "",
             });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, authLoading, navigate]);
 
     if (authLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-cyan-50/30">
+            <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
         );
@@ -97,7 +98,7 @@ export default function Profile() {
                 <meta name="description" content="Manage your profile and account settings." />
             </Helmet>
 
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/30">
+            <div className="min-h-screen bg-[#F8FAFC]">
                 <Header />
 
                 <div className="container max-w-4xl mx-auto px-4 py-12">

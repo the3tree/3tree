@@ -58,8 +58,9 @@ export default function SystemSettingsManager() {
             const result = await updateSystemSetting(category, key, editedValues[settingKey]);
             if (!result.success) throw new Error(result.error);
             toast({ title: 'Setting Updated', description: `${key} has been saved successfully.` });
-        } catch (error: any) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to save setting';
+            toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
         } finally {
             setSaving(null);
         }
@@ -139,8 +140,8 @@ export default function SystemSettingsManager() {
                         key={group.category}
                         onClick={() => setActiveCategory(group.category)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${activeCategory === group.category
-                                ? 'bg-slate-900 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                     >
                         <span>{group.icon}</span>

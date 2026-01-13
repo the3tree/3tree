@@ -93,8 +93,9 @@ export async function verifyTherapist(
             `Therapist verified${notes ? `: ${notes}` : ''}`);
 
         return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -120,8 +121,9 @@ export async function rejectTherapist(
             `Therapist rejected: ${reason}`);
 
         return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -151,8 +153,9 @@ export async function updateUserRole(
         );
 
         return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -220,8 +223,9 @@ export async function updateSystemSetting(
             `Setting ${category}.${key} updated`);
 
         return { success: true };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return { success: false, error: errorMessage };
     }
 }
 

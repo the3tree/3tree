@@ -38,6 +38,7 @@ export default function VideoCallRoom() {
     const [error, setError] = useState<string | null>(null);
     const [otherUser, setOtherUser] = useState<{ name: string; avatar?: string } | null>(null);
     const [isInitiator, setIsInitiator] = useState(false);
+    const [connectionQuality, setConnectionQuality] = useState<string>('unknown');
 
     const mode = searchParams.get('mode') || 'video';
 
@@ -175,12 +176,36 @@ export default function VideoCallRoom() {
         }
     }, [isVideoOff]);
 
+    const toggleScreenShare = useCallback(async () => {
+        if (webrtcRef.current) {
+            if (isScreenSharing) {
+                await webrtcRef.current.stopScreenShare();
+                setIsScreenSharing(false);
+            } else {
+                const success = await webrtcRef.current.startScreenShare();
+                setIsScreenSharing(success);
+            }
+        }
+    }, [isScreenSharing]);
+
     const toggleSpeaker = useCallback(() => {
         if (remoteVideoRef.current) {
             remoteVideoRef.current.muted = !isSpeakerMuted;
             setIsSpeakerMuted(!isSpeakerMuted);
         }
     }, [isSpeakerMuted]);
+
+    // Start quality monitoring when connected
+    useEffect(() => {
+        if (connectionState === 'connected' && webrtcRef.current) {
+            webrtcRef.current.startQualityMonitoring(setConnectionQuality);
+        }
+        return () => {
+            if (webrtcRef.current) {
+                webrtcRef.current.stopQualityMonitoring();
+            }
+        };
+    }, [connectionState]);
 
     const endCall = useCallback(async () => {
         if (webrtcRef.current) {
@@ -281,9 +306,33 @@ export default function VideoCallRoom() {
                         </div>
                         <div className="flex items-center gap-4">
                             {connectionState === 'connected' && (
-                                <div className="px-4 py-2 bg-gray-700 rounded-lg text-white font-mono">
-                                    {formatDuration(callDuration)}
-                                </div>
+                                <>
+                                    <div className="px-4 py-2 bg-gray-700 rounded-lg text-white font-mono">
+                                        {formatDuration(callDuration)}
+                                    </div>
+                                    {/* Connection Quality Indicator */}
+                                    <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${connectionQuality === 'excellent' ? 'bg-green-500/20 text-green-400' :
+                                        connectionQuality === 'good' ? 'bg-blue-500/20 text-blue-400' :
+                                            connectionQuality === 'fair' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                connectionQuality === 'poor' ? 'bg-red-500/20 text-red-400' :
+                                                    'bg-gray-700 text-gray-400'
+                                        }`}>
+                                        <span className={`w-2 h-2 rounded-full ${connectionQuality === 'excellent' ? 'bg-green-400' :
+                                            connectionQuality === 'good' ? 'bg-blue-400' :
+                                                connectionQuality === 'fair' ? 'bg-yellow-400' :
+                                                    connectionQuality === 'poor' ? 'bg-red-400' :
+                                                        'bg-gray-400'
+                                            }`} />
+                                        {connectionQuality}
+                                    </div>
+                                    {/* Screen Share Indicator */}
+                                    {isScreenSharing && (
+                                        <div className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs font-medium flex items-center gap-1">
+                                            <Monitor className="w-3 h-3" />
+                                            Sharing Screen
+                                        </div>
+                                    )}
+                                </>
                             )}
                             <Button
                                 variant="ghost"
@@ -395,6 +444,17 @@ export default function VideoCallRoom() {
                             title={isSpeakerMuted ? 'Unmute speaker' : 'Mute speaker'}
                         >
                             {isSpeakerMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                        </Button>
+
+                        {/* Screen Share toggle */}
+                        <Button
+                            variant="ghost"
+                            size="lg"
+                            onClick={toggleScreenShare}
+                            className={`w-14 h-14 rounded-full ${isScreenSharing ? 'bg-purple-500 hover:bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
+                            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+                        >
+                            {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
                         </Button>
 
                         {/* End Call */}

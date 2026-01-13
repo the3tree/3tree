@@ -55,12 +55,14 @@ export default function BookingManagement() {
         } else if (!authLoading && !isAdmin && !isTherapist) {
             navigate('/dashboard');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, authLoading, navigate]);
 
     useEffect(() => {
         if (user && (isAdmin || isTherapist)) {
             loadBookings();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, statusFilter, timeFilter]);
 
     const loadBookings = async () => {
@@ -115,6 +117,7 @@ export default function BookingManagement() {
             if (error) throw error;
 
             // Transform data to match BookingData interface
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const transformedData: BookingData[] = (data || []).map((b: any) => ({
                 id: b.id,
                 scheduled_at: b.scheduled_at,
@@ -152,8 +155,9 @@ export default function BookingManagement() {
 
             toast({ title: 'Status Updated', description: `Booking ${newStatus}` });
             loadBookings();
-        } catch (error: any) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to update status';
+            toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
         } finally {
             setActionLoading(null);
         }

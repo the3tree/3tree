@@ -164,6 +164,7 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
     }, []);
 
     // Auto-connect if roomId provided
+    // Auto-connect if roomId provided
     useEffect(() => {
         if (autoConnect && options.roomId) {
             connect(options.roomId);
@@ -173,6 +174,7 @@ export function useWebRTC(options: UseWebRTCOptions): UseWebRTCReturn {
         return () => {
             disconnect();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return {

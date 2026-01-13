@@ -443,7 +443,7 @@ export async function getAvailableSlots(
 
     // Generate time slots with conflict checking
     const slots: TimeSlot[] = [];
-    
+
     for (const time of availableTimes) {
         const [hours, minutes] = time.split(':').map(Number);
         const slotStart = new Date(date);
@@ -490,7 +490,7 @@ export async function getAvailableDates(therapistId: string): Promise<Date[]> {
     today.setHours(0, 0, 0, 0);
 
     // Check for blocked dates
-    let blockedDates: Set<string> = new Set();
+    const blockedDates: Set<string> = new Set();
     try {
         const { data } = await supabase
             .from('therapist_blocked_times')
@@ -553,7 +553,7 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
     const scheduledDate = new Date(data.scheduled_at);
     const now = new Date();
     const minBookingTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 min buffer
-    
+
     if (scheduledDate <= minBookingTime) {
         return { booking: null, error: 'Please select a time at least 30 minutes from now' };
     }
@@ -613,13 +613,56 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
 
         if (error) {
             console.error('Booking creation error:', error);
-            
+
             // Check for specific error types
             if (error.code === '23505') {
                 return { booking: null, error: 'This time slot was just booked. Please select another time.' };
             }
             throw error;
         }
+
+        // ============================================
+        // AUTOMATION: Send Confirmations & Reminders
+        // ============================================
+        try {
+            // We have the full booking object with relations from the select() above
+            const bookingDetails = booking as BookingDetails;
+
+            // Prepare automation data
+            const automationData = {
+                bookingId: booking.id,
+                clientId: data.client_id,
+                therapistId: data.therapist_id,
+                scheduledAt: data.scheduled_at,
+                clientEmail: bookingDetails.client?.email || '',
+                clientPhone: bookingDetails.client?.phone || undefined,
+                clientName: bookingDetails.client?.full_name || 'Client',
+                therapistName: bookingDetails.therapist?.user?.full_name || 'Therapist',
+                therapistPhone: bookingDetails.therapist?.user?.phone || undefined,
+                serviceType: service?.name || 'Therapy Session',
+                sessionMode: data.session_mode || 'video',
+                meetingUrl: meetingUrl,
+            };
+
+            // Run automation in background (don't block return)
+            // Note: In a robust backend, this would be a queued job.
+            // Here we fire-and-forget but log errors.
+            import('./services/bookingAutomation').then(async (automation) => {
+                try {
+                    console.log('🔄 Triggering booking automation...');
+                    await automation.sendBookingConfirmation(automationData);
+                    await automation.scheduleBookingReminders(automationData);
+                    console.log('✅ Booking automation triggered successfully');
+                } catch (autoError) {
+                    console.error('⚠️ Booking automation failed:', autoError);
+                }
+            });
+
+        } catch (setupError) {
+            console.warn('⚠️ Failed to setup automation data:', setupError);
+        }
+
+
 
         // Create video call session entry for video/audio sessions
         if (data.session_mode === 'video' || data.session_mode === 'audio' || !data.session_mode) {
@@ -684,9 +727,10 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
         }
 
         return { booking: booking as BookingDetails, error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error creating booking:', error);
-        return { booking: null, error: error.message || 'Failed to create booking. Please try again.' };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create booking. Please try again.';
+        return { booking: null, error: errorMessage };
     }
 }
 
@@ -777,7 +821,7 @@ export async function getUpcomingBookings(userId: string): Promise<BookingDetail
  * Cancel a booking with reason tracking
  */
 export async function cancelBooking(
-    bookingId: string, 
+    bookingId: string,
     reason?: string,
     cancelledBy: 'client' | 'therapist' | 'admin' = 'client'
 ): Promise<{ success: boolean; error: string | null; refundEligible?: boolean }> {
@@ -809,7 +853,7 @@ export async function cancelBooking(
 
         const { error } = await supabase
             .from('bookings')
-            .update({ 
+            .update({
                 status: 'cancelled',
                 cancellation_reason: reason || null,
                 cancelled_by: cancelledBy,
@@ -827,9 +871,10 @@ export async function cancelBooking(
             .eq('booking_id', bookingId);
 
         return { success: true, error: null, refundEligible };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error cancelling booking:', error);
-        return { success: false, error: error.message || 'Failed to cancel booking' };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to cancel booking';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -870,7 +915,7 @@ export async function rescheduleBooking(
             `${newDate.getHours().toString().padStart(2, '0')}:${newDate.getMinutes().toString().padStart(2, '0')}`
         );
         const slot = slots.find(s => s.time === timeStr);
-        
+
         if (slot && !slot.available) {
             return { success: false, error: 'This time slot is not available' };
         }
@@ -897,9 +942,10 @@ export async function rescheduleBooking(
         if (error) throw error;
 
         return { success: true, error: null, booking: updatedBooking as BookingDetails };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error rescheduling booking:', error);
-        return { success: false, error: error.message || 'Failed to reschedule booking' };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to reschedule booking';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -910,7 +956,7 @@ export async function completeBooking(bookingId: string): Promise<{ success: boo
     try {
         const { error } = await supabase
             .from('bookings')
-            .update({ 
+            .update({
                 status: 'completed',
                 updated_at: new Date().toISOString()
             })
@@ -921,15 +967,16 @@ export async function completeBooking(bookingId: string): Promise<{ success: boo
         // Update video session
         await supabase
             .from('video_call_sessions')
-            .update({ 
+            .update({
                 status: 'ended',
                 ended_at: new Date().toISOString()
             })
             .eq('booking_id', bookingId);
 
         return { success: true, error: null };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to complete booking';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -1028,12 +1075,12 @@ export async function getTherapistBookingStats(therapistId: string): Promise<{
 
         if (data) {
             const completed = data.filter(b => b.status === 'completed');
-            const todaySessions = data.filter(b => 
-                b.scheduled_at >= todayStart && b.scheduled_at < todayEnd && 
+            const todaySessions = data.filter(b =>
+                b.scheduled_at >= todayStart && b.scheduled_at < todayEnd &&
                 ['pending', 'confirmed'].includes(b.status)
             );
-            const weekSessions = data.filter(b => 
-                b.scheduled_at >= weekStart && 
+            const weekSessions = data.filter(b =>
+                b.scheduled_at >= weekStart &&
                 ['pending', 'confirmed', 'completed'].includes(b.status)
             );
 
@@ -1070,15 +1117,15 @@ export default {
     // Types
     serviceTypes,
     sessionPackages,
-    
+
     // Fetch functions
     fetchTherapists,
     fetchTherapistById,
-    
+
     // Availability
     getAvailableSlots,
     getAvailableDates,
-    
+
     // Booking CRUD
     createBooking,
     getBookingById,
@@ -1088,11 +1135,11 @@ export default {
     cancelBooking,
     rescheduleBooking,
     completeBooking,
-    
+
     // Statistics
     getBookingStats,
     getTherapistBookingStats,
-    
+
     // Timezone helpers
     getUserTimezone,
     convertToUserTimezone,

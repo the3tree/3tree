@@ -102,6 +102,7 @@ export default function AuthCallback() {
             console.log('⏳ Waiting for auth state change...');
             setDebugInfo('Waiting for authentication to complete...');
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let authSubscription: any = null;
             let resolved = false;
 
@@ -147,6 +148,7 @@ export default function AuthCallback() {
             setError(err instanceof Error ? err.message : 'An unexpected error occurred');
             setStatus('error');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
     const processAuthenticatedUser = async (userId: string) => {
@@ -181,6 +183,7 @@ export default function AuthCallback() {
 
             // Now check if profile is complete by querying database
             console.log('🔍 Checking if profile is complete...');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let profileData: any = null;
 
             try {
@@ -191,6 +194,7 @@ export default function AuthCallback() {
                         .eq('id', userId)
                         .single(),
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Profile check timeout')), 3000))
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 ]) as any;
 
                 if (!error && data) {

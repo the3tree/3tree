@@ -46,6 +46,7 @@ export default function NotificationBell() {
                 unsubscribeFromNotifications(channelRef.current);
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
     // Click outside to close

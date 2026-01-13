@@ -52,9 +52,10 @@ export async function createCheckoutSession(details: PaymentDetails): Promise<{
 
         if (error) throw error;
         return { data, error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Checkout session error:', error);
-        return { data: null, error: error.message };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create checkout session';
+        return { data: null, error: errorMessage };
     }
 }
 
@@ -85,9 +86,10 @@ export async function createPaymentIntent(details: PaymentDetails): Promise<{
             },
             error: null,
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Payment intent error:', error);
-        return { data: null, error: error.message };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create payment intent';
+        return { data: null, error: errorMessage };
     }
 }
 
@@ -135,9 +137,10 @@ export async function confirmPayment(
         }
 
         return { success: true, error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Payment confirmation error:', error);
-        return { success: false, error: error.message };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to confirm payment';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -168,15 +171,27 @@ export async function processRefund(
             .eq('id', bookingId);
 
         return { success: true, refund_id: data.refund_id, error: null };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Refund error:', error);
-        return { success: false, error: error.message };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to process refund';
+        return { success: false, error: errorMessage };
     }
+}
+
+export interface PaymentHistoryItem {
+    id: string;
+    amount: number;
+    status: string;
+    payment_id: string;
+    date: string;
+    session_date: string;
+    service: string;
+    therapist: string;
 }
 
 // Get payment history for a user
 export async function getPaymentHistory(userId: string): Promise<{
-    data: any[];
+    data: PaymentHistoryItem[];
     error: string | null;
 }> {
     try {
@@ -192,22 +207,26 @@ export async function getPaymentHistory(userId: string): Promise<{
 
         if (error) throw error;
 
+        // Type for the mapped Supabase response
+        const mappedData = (data || []).map((p) => ({
+            id: p.id as string,
+            amount: (p.amount as number) || 0,
+            status: (p.payment_status as string) || 'pending',
+            payment_id: (p.payment_id as string) || '',
+            date: p.created_at as string,
+            session_date: p.scheduled_at as string,
+            service: (p.service_type as string) || 'therapy',
+            therapist: ((p.therapist as unknown) as { user: { full_name: string } } | null)?.user?.full_name || 'Therapist',
+        }));
+
         return {
-            data: (data || []).map((p: any) => ({
-                id: p.id,
-                amount: p.amount,
-                status: p.payment_status,
-                payment_id: p.payment_id,
-                date: p.created_at,
-                session_date: p.scheduled_at,
-                service: p.service_type,
-                therapist: p.therapist?.user?.full_name || 'Therapist',
-            })),
+            data: mappedData,
             error: null,
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Payment history error:', error);
-        return { data: [], error: error.message };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch payment history';
+        return { data: [], error: errorMessage };
     }
 }
 

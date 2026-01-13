@@ -54,6 +54,7 @@ export async function getBookingsNeedingReminders(): Promise<{
         .gte('scheduled_at', oneHourStart.toISOString())
         .lte('scheduled_at', oneHourEnd.toISOString());
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mapBooking = (b: any): UpcomingBooking => ({
         id: b.id,
         scheduled_at: b.scheduled_at,

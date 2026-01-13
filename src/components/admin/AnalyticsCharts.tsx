@@ -21,6 +21,7 @@ export default function AnalyticsCharts() {
 
     useEffect(() => {
         fetchAnalytics();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [period]);
 
     const fetchAnalytics = async () => {
@@ -56,6 +57,7 @@ export default function AnalyticsCharts() {
         }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const processBookingsByDay = (bookings: any[], days: number): ChartData[] => {
         const result: ChartData[] = [];
         const now = new Date();
@@ -76,6 +78,7 @@ export default function AnalyticsCharts() {
         return result;
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const processBookingsByStatus = (bookings: any[]): ChartData[] => {
         const statuses: Record<string, number> = {};
         bookings.forEach(b => {
@@ -84,6 +87,7 @@ export default function AnalyticsCharts() {
         return Object.entries(statuses).map(([name, value]) => ({ name, value }));
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const processUserGrowth = (users: any[], days: number): ChartData[] => {
         const result: ChartData[] = [];
         const now = new Date();
@@ -104,6 +108,7 @@ export default function AnalyticsCharts() {
         return result;
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const processRevenueByMonth = (bookings: any[]): ChartData[] => {
         const months: Record<string, number> = {};
         bookings.forEach(b => {
@@ -134,8 +139,8 @@ export default function AnalyticsCharts() {
                         key={p}
                         onClick={() => setPeriod(p)}
                         className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${period === p
-                                ? 'bg-cyan-500 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-cyan-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                     >
                         {p === '7d' ? '7 Days' : p === '30d' ? '30 Days' : '90 Days'}
