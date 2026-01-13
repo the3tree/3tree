@@ -389,8 +389,27 @@ export async function fetchTherapistById(therapistId: string): Promise<Therapist
 }
 
 /**
+ * Generate default time slots for a therapist (9 AM - 6 PM, hourly)
+ * Used when therapist hasn't configured specific availability
+ */
+function generateDefaultTimeSlots(): string[] {
+    const slots: string[] = [];
+    // Business hours: 9 AM to 6 PM, hourly slots
+    for (let hour = 9; hour < 18; hour++) {
+        slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return slots;
+}
+
+/**
+ * Day of week to day name mapping (0 = Sunday)
+ */
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
  * Get available time slots for a therapist on a specific date
  * Enhanced with better timezone handling and conflict detection
+ * Falls back to default business hours when no availability is configured
  */
 export async function getAvailableSlots(
     therapistId: string,
@@ -401,16 +420,56 @@ export async function getAvailableSlots(
     const therapist = await fetchTherapistById(therapistId);
     if (!therapist) return [];
 
-    // Check if therapist has availability data
-    if (!therapist.availability || typeof therapist.availability !== 'object') {
-        console.warn('Therapist has no availability configured');
-        return [];
+    const dayName = getDayName(date);
+    const dayOfWeek = date.getDay();
+    let availableTimes: string[] = [];
+
+    // First, check the JSONB availability field on therapist record
+    if (therapist.availability && typeof therapist.availability === 'object') {
+        const jsonAvailability = therapist.availability[dayName];
+        if (Array.isArray(jsonAvailability) && jsonAvailability.length > 0) {
+            availableTimes = jsonAvailability;
+            console.log(`Using JSONB availability for ${dayName}:`, availableTimes.length, 'slots');
+        }
     }
 
-    const dayName = getDayName(date);
-    const availableTimes = therapist.availability[dayName] || [];
+    // If no JSONB availability, try to fetch from therapist_availability table
+    if (availableTimes.length === 0) {
+        try {
+            const { data: tableAvailability, error } = await supabase
+                .from('therapist_availability')
+                .select('start_time, end_time')
+                .eq('therapist_id', therapistId)
+                .eq('day_of_week', dayOfWeek)
+                .eq('is_available', true);
 
-    if (availableTimes.length === 0) return [];
+            if (!error && tableAvailability && tableAvailability.length > 0) {
+                // Generate time slots from start_time to end_time ranges
+                for (const range of tableAvailability) {
+                    const [startHour] = range.start_time.split(':').map(Number);
+                    const [endHour] = range.end_time.split(':').map(Number);
+                    for (let hour = startHour; hour < endHour; hour++) {
+                        availableTimes.push(`${hour.toString().padStart(2, '0')}:00`);
+                    }
+                }
+                console.log(`Using therapist_availability table for ${dayName}:`, availableTimes.length, 'slots');
+            }
+        } catch (error) {
+            console.warn('Failed to fetch from therapist_availability table:', error);
+        }
+    }
+
+    // If still no availability, use default business hours for weekdays
+    if (availableTimes.length === 0) {
+        // Only provide default slots for weekdays (Monday-Friday)
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            availableTimes = generateDefaultTimeSlots();
+            console.log(`Using default business hours for ${dayName}:`, availableTimes.length, 'slots');
+        } else {
+            console.log(`No availability for weekend day ${dayName}`);
+            return [];
+        }
+    }
 
     // Get existing bookings for this date
     const dateStr = date.toISOString().split('T')[0];
@@ -479,12 +538,55 @@ export async function getAvailableSlots(
 /**
  * Get available dates for a therapist (next 60 days)
  * Checks both therapist availability and existing bookings
+ * Falls back to weekdays when no availability is configured
  */
 export async function getAvailableDates(therapistId: string): Promise<Date[]> {
     const therapist = await fetchTherapistById(therapistId);
-    if (!therapist || !therapist.availability) return [];
+    if (!therapist) return [];
 
-    const availableDays = Object.keys(therapist.availability);
+    // Determine which days are available
+    let availableDayNumbers: Set<number> = new Set();
+
+    // First, check JSONB availability field
+    if (therapist.availability && typeof therapist.availability === 'object') {
+        const dayNames = Object.keys(therapist.availability);
+        for (const dayName of dayNames) {
+            const slots = therapist.availability[dayName];
+            if (Array.isArray(slots) && slots.length > 0) {
+                const dayIndex = DAY_NAMES.indexOf(dayName);
+                if (dayIndex !== -1) {
+                    availableDayNumbers.add(dayIndex);
+                }
+            }
+        }
+    }
+
+    // If no JSONB availability, try to fetch from therapist_availability table
+    if (availableDayNumbers.size === 0) {
+        try {
+            const { data: tableAvailability, error } = await supabase
+                .from('therapist_availability')
+                .select('day_of_week')
+                .eq('therapist_id', therapistId)
+                .eq('is_available', true);
+
+            if (!error && tableAvailability && tableAvailability.length > 0) {
+                for (const record of tableAvailability) {
+                    availableDayNumbers.add(record.day_of_week);
+                }
+                console.log('Using therapist_availability table for available days:', availableDayNumbers);
+            }
+        } catch (error) {
+            console.warn('Failed to fetch from therapist_availability table:', error);
+        }
+    }
+
+    // If still no availability, default to weekdays (Monday-Friday)
+    if (availableDayNumbers.size === 0) {
+        console.log('No availability configured, defaulting to weekdays');
+        availableDayNumbers = new Set([1, 2, 3, 4, 5]); // Monday through Friday
+    }
+
     const dates: Date[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -518,16 +620,14 @@ export async function getAvailableDates(therapistId: string): Promise<Date[]> {
         const date = new Date(today);
         date.setDate(date.getDate() + i);
         const dateStr = date.toISOString().split('T')[0];
-        const dayName = getDayName(date);
+        const dayOfWeek = date.getDay();
 
         // Skip blocked dates
         if (blockedDates.has(dateStr)) continue;
 
-        if (availableDays.includes(dayName)) {
-            const availability = therapist.availability[dayName];
-            if (availability && availability.length > 0) {
-                dates.push(new Date(date));
-            }
+        // Check if this day of week is available
+        if (availableDayNumbers.has(dayOfWeek)) {
+            dates.push(new Date(date));
         }
     }
 
