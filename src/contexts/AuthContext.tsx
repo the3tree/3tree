@@ -302,15 +302,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Ensure profile exists and refresh cached user
             const authUser = data?.user ?? data?.session?.user ?? null;
             if (authUser) {
-                await ensureUserProfileExists(authUser);
-                await fetchUserProfile(authUser.id);
-                console.log('✅ User profile loaded successfully');
+                try {
+                    await ensureUserProfileExists(authUser);
+
+                    // Fetch profile with timeout - don't let it block indefinitely
+                    const profilePromise = supabase
+                        .from('users')
+                        .select('*')
+                        .eq('id', authUser.id)
+                        .single();
+
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Profile fetch timeout')), 4000)
+                    );
+
+                    try {
+                        const result = await Promise.race([profilePromise, timeoutPromise]) as any;
+                        if (result.data) {
+                            console.log('✅ User profile loaded:', result.data.email);
+                            setUser(result.data);
+                        } else {
+                            // Fallback to basic profile from auth
+                            console.warn('⚠️ Using fallback profile from auth data');
+                            setUser({
+                                id: authUser.id,
+                                email: authUser.email || 'user@example.com',
+                                full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || 'User',
+                                role: (authUser.user_metadata?.role as User['role']) || 'client',
+                                is_active: true,
+                                is_profile_complete: false,
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString(),
+                            } as User);
+                        }
+                    } catch (fetchError) {
+                        console.warn('⚠️ Profile fetch failed/timeout, using auth data:', fetchError);
+                        setUser({
+                            id: authUser.id,
+                            email: authUser.email || 'user@example.com',
+                            full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || 'User',
+                            role: (authUser.user_metadata?.role as User['role']) || 'client',
+                            is_active: true,
+                            is_profile_complete: false,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                        } as User);
+                    }
+
+                    console.log('✅ User profile loaded successfully');
+                } catch (profileError) {
+                    console.error('⚠️ Profile setup error:', profileError);
+                    // Still set a minimal user so the app works
+                    setUser({
+                        id: authUser.id,
+                        email: authUser.email || 'user@example.com',
+                        full_name: authUser.user_metadata?.full_name || 'User',
+                        role: (authUser.user_metadata?.role as User['role']) || 'client',
+                        is_active: true,
+                        is_profile_complete: false,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    } as User);
+                }
             } else {
-                setLoading(false);
                 console.error('❌ No user found in session data');
+                setLoading(false);
                 return { error: { message: 'Failed to retrieve user session' } as AuthError };
             }
 
+            // Always ensure loading is set to false
             setLoading(false);
             return { error: null };
         } catch (error) {

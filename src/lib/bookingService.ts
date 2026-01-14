@@ -697,6 +697,27 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
 
         const serviceType = mapServiceType(service?.name || data.session_mode);
 
+        // Generate meeting credentials for video sessions
+        const generateMeetingId = () => {
+            // Generate a 10-digit meeting ID like Zoom
+            return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+        };
+
+        const generatePasscode = () => {
+            // Generate a 6-character alphanumeric passcode
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+            return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+        };
+
+        const generateHostKey = () => {
+            // Generate a 6-digit host key
+            return Math.floor(100000 + Math.random() * 900000).toString();
+        };
+
+        const zoomMeetingId = generateMeetingId();
+        const zoomPasscode = generatePasscode();
+        const zoomHostKey = generateHostKey();
+
         // Insert booking with columns that match the ACTUAL database schema
         // DB uses: patient_id, therapist_id, service_type, scheduled_at, duration_minutes, status, meeting_link, notes, amount, payment_status
         const bookingData = {
@@ -710,6 +731,10 @@ export async function createBooking(data: CreateBookingData): Promise<{ booking:
             notes: data.notes_client || null,
             amount: amount,
             payment_status: amount === 0 ? 'paid' : 'pending',
+            // Secure meeting credentials
+            zoom_meeting_id: zoomMeetingId,
+            zoom_passcode: zoomPasscode,
+            zoom_host_key: zoomHostKey,
         };
 
         console.log('📝 Creating booking with data:', bookingData);

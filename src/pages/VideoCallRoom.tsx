@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
     Mic, MicOff, Video, VideoOff, Phone, MessageCircle,
     Settings, Monitor, MonitorOff, Loader2, AlertCircle,
-    PhoneOff, RotateCcw, Volume2, VolumeX
+    PhoneOff, RotateCcw, Volume2, VolumeX, ExternalLink, Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +39,8 @@ export default function VideoCallRoom() {
     const [otherUser, setOtherUser] = useState<{ name: string; avatar?: string } | null>(null);
     const [isInitiator, setIsInitiator] = useState(false);
     const [connectionQuality, setConnectionQuality] = useState<string>('unknown');
+    const [googleMeetLink, setGoogleMeetLink] = useState<string | null>(null);
+    const [showGoogleMeetModal, setShowGoogleMeetModal] = useState(false);
 
     const mode = searchParams.get('mode') || 'video';
 
@@ -229,17 +231,79 @@ export default function VideoCallRoom() {
         }
     }, [roomId, user]);
 
-    const handleSendChatMessage = () => {
-        if (!newChatMessage.trim()) return;
+    // Generate Google Meet link as fallback
+    const generateGoogleMeetLink = useCallback(() => {
+        // Generate a Google Meet link - users can create their own meeting
+        const meetLink = 'https://meet.google.com/new';
+        setGoogleMeetLink(meetLink);
+        setShowGoogleMeetModal(true);
+    }, []);
 
-        // Add to local messages
+    // Open Google Meet in new tab
+    const openGoogleMeet = useCallback(() => {
+        window.open(googleMeetLink || 'https://meet.google.com/new', '_blank');
+    }, [googleMeetLink]);
+
+    // Setup Realtime chat channel
+    useEffect(() => {
+        if (!roomId || !user) return;
+
+        const channel = supabase.channel(`chat-${roomId}`)
+            .on('broadcast', { event: 'chat-message' }, (payload) => {
+                const msg = payload.payload;
+                if (msg.sender_id !== user.id) {
+                    setChatMessages(prev => [...prev, {
+                        sender: 'them',
+                        content: msg.content,
+                        time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }]);
+                    // Auto-scroll to bottom
+                    if (chatContainerRef.current) {
+                        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+                    }
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [roomId, user]);
+
+    const handleSendChatMessage = useCallback(async () => {
+        if (!newChatMessage.trim() || !roomId || !user) return;
+
+        const message = {
+            sender_id: user.id,
+            sender_name: user.full_name || 'You',
+            content: newChatMessage.trim(),
+            timestamp: new Date().toISOString()
+        };
+
+        // Add to local messages immediately
         setChatMessages(prev => [...prev, {
             sender: 'me',
             content: newChatMessage,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }]);
         setNewChatMessage("");
-    };
+
+        // Broadcast to other participant via Supabase Realtime
+        try {
+            await supabase.channel(`chat-${roomId}`).send({
+                type: 'broadcast',
+                event: 'chat-message',
+                payload: message
+            });
+        } catch (err) {
+            console.error('Failed to send chat message:', err);
+        }
+
+        // Auto-scroll to bottom
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, [newChatMessage, roomId, user]);
 
     // Error/Loading states
     if (authLoading) {
@@ -259,14 +323,29 @@ export default function VideoCallRoom() {
                     </div>
                     <h2 className="text-xl font-semibold text-white mb-2">Connection Failed</h2>
                     <p className="text-gray-400 mb-6">{error || 'Unable to establish connection. Please check your camera and microphone permissions.'}</p>
-                    <div className="flex gap-4 justify-center">
-                        <Button onClick={retryConnection} className="bg-primary hover:bg-primary/90">
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Try Again
-                        </Button>
-                        <Button variant="outline" onClick={() => navigate('/dashboard')} className="text-white border-gray-600">
-                            Back to Dashboard
-                        </Button>
+
+                    <div className="flex flex-col gap-3">
+                        <div className="flex gap-3 justify-center">
+                            <Button onClick={retryConnection} className="bg-primary hover:bg-primary/90">
+                                <RotateCcw className="w-4 h-4 mr-2" />
+                                Try Again
+                            </Button>
+                            <Button variant="outline" onClick={() => navigate('/dashboard')} className="text-white border-gray-600">
+                                Back to Dashboard
+                            </Button>
+                        </div>
+
+                        {/* Google Meet Fallback */}
+                        <div className="border-t border-gray-700 pt-4 mt-2">
+                            <p className="text-sm text-gray-500 mb-3">Or continue your session on Google Meet:</p>
+                            <Button
+                                onClick={() => window.open('https://meet.google.com/new', '_blank')}
+                                className="bg-green-600 hover:bg-green-700 text-white w-full"
+                            >
+                                <ExternalLink className="w-4 h-4 mr-2" />
+                                Open Google Meet
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -457,6 +536,33 @@ export default function VideoCallRoom() {
                             {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
                         </Button>
 
+                        {/* Chat toggle */}
+                        <Button
+                            variant="ghost"
+                            size="lg"
+                            onClick={() => setShowChat(!showChat)}
+                            className={`w-14 h-14 rounded-full ${showChat ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white relative`}
+                            title="Toggle chat"
+                        >
+                            <MessageCircle className="w-6 h-6" />
+                            {chatMessages.length > 0 && !showChat && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center">
+                                    {chatMessages.length > 9 ? '9+' : chatMessages.length}
+                                </span>
+                            )}
+                        </Button>
+
+                        {/* Google Meet Fallback */}
+                        <Button
+                            variant="ghost"
+                            size="lg"
+                            onClick={generateGoogleMeetLink}
+                            className="w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 text-white"
+                            title="Switch to Google Meet"
+                        >
+                            <ExternalLink className="w-6 h-6" />
+                        </Button>
+
                         {/* End Call */}
                         <Button
                             variant="ghost"
@@ -527,6 +633,52 @@ export default function VideoCallRoom() {
                                 />
                                 <Button onClick={handleSendChatMessage} className="bg-primary hover:bg-primary/90">
                                     Send
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Google Meet Fallback Modal */}
+                {showGoogleMeetModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                        <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <ExternalLink className="w-8 h-8 text-green-400" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-white mb-2">Switch to Google Meet</h3>
+                                <p className="text-gray-400 text-sm">
+                                    Having connection issues? You can continue your session on Google Meet as a backup option.
+                                </p>
+                            </div>
+
+                            <div className="bg-gray-700/50 rounded-xl p-4 mb-6">
+                                <p className="text-xs text-gray-400 mb-2">Instructions:</p>
+                                <ol className="text-sm text-gray-300 space-y-1 list-decimal list-inside">
+                                    <li>Click the button below to open Google Meet</li>
+                                    <li>Copy the meeting link from Google Meet</li>
+                                    <li>Share it with your session partner via chat</li>
+                                </ol>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 text-gray-300 border-gray-600 hover:bg-gray-700"
+                                    onClick={() => setShowGoogleMeetModal(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={() => {
+                                        openGoogleMeet();
+                                        setShowGoogleMeetModal(false);
+                                    }}
+                                >
+                                    <ExternalLink className="w-4 h-4 mr-2" />
+                                    Open Google Meet
                                 </Button>
                             </div>
                         </div>

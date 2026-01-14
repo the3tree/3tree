@@ -1,12 +1,13 @@
 /**
  * BookingPage - Complete premium booking experience
  * 5-step booking flow with beautiful UI and animations
+ * Enhanced with real-time slot synchronization
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Search, Filter, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Filter, X, AlertCircle } from 'lucide-react';
 import { gsap } from 'gsap';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,15 @@ import {
     type TherapistWithDetails,
     type TimeSlot
 } from '@/lib/bookingService';
+
+// Real-time Booking Service
+import {
+    lockSlotInDatabase,
+    unlockSlotInDatabase,
+    createBookingAtomic,
+    subscribeToSlotAvailability,
+    getActiveLocksForTherapist
+} from '@/lib/services/bookingRealtimeService';
 
 // Booking Automation
 import {
@@ -89,6 +99,12 @@ export default function BookingPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterOpen, setFilterOpen] = useState(false);
     const [specialtyFilter, setSpecialtyFilter] = useState<string | null>(null);
+
+    // Real-time slot state
+    const [lockStatus, setLockStatus] = useState<'none' | 'locking' | 'locked' | 'failed'>('none');
+    const [selectedSlotIso, setSelectedSlotIso] = useState<string | null>(null);
+    const lockRefreshInterval = useRef<NodeJS.Timeout | null>(null);
+    const realtimeCleanup = useRef<(() => void) | null>(null);
 
     // Refs
     const contentRef = useRef<HTMLDivElement>(null);
@@ -175,13 +191,149 @@ export default function BookingPage() {
         setLoadingSlots(true);
         try {
             const slots = await getAvailableSlots(therapistId, date);
-            setTimeSlots(slots);
+
+            // Get active locks from other users
+            const dateStr = date.toISOString().split('T')[0];
+            let activeLocks: any[] = [];
+            if (user?.id) {
+                activeLocks = await getActiveLocksForTherapist(therapistId, dateStr, user.id);
+            }
+
+            // Merge slot data with lock status
+            const enhancedSlots = slots.map(slot => {
+                const lock = activeLocks.find(l => l.slot_datetime === slot.iso);
+                return {
+                    ...slot,
+                    isLocked: !!lock,
+                    lockedBy: lock?.locked_by,
+                    isBeingBooked: !!lock && lock.locked_by !== user?.id,
+                    available: slot.available && (!lock || lock.locked_by === user?.id)
+                };
+            });
+
+            setTimeSlots(enhancedSlots as TimeSlot[]);
         } catch (error) {
             console.error('Failed to load time slots:', error);
         } finally {
             setLoadingSlots(false);
         }
     };
+
+    // Handle real-time slot selection with locking
+    const handleTimeSelect = useCallback(async (time: string, slotIso?: string) => {
+        if (!selectedTherapist || !user?.id) {
+            setSelectedTime(time);
+            return;
+        }
+
+        // Release previous lock if any
+        if (selectedSlotIso && selectedSlotIso !== slotIso) {
+            await unlockSlotInDatabase(selectedTherapist, selectedSlotIso, user.id);
+            if (lockRefreshInterval.current) {
+                clearInterval(lockRefreshInterval.current);
+                lockRefreshInterval.current = null;
+            }
+        }
+
+        setSelectedTime(time);
+        setSelectedSlotIso(slotIso || null);
+
+        if (!slotIso) return;
+
+        // Lock the slot
+        setLockStatus('locking');
+        const lockResult = await lockSlotInDatabase(selectedTherapist, slotIso, user.id, 5);
+
+        if (!lockResult.success) {
+            setLockStatus('failed');
+            toast({
+                title: 'Slot Unavailable',
+                description: lockResult.error || 'This slot is being booked by someone else.',
+                variant: 'destructive'
+            });
+            setSelectedTime(null);
+            setSelectedSlotIso(null);
+            // Refresh slots to show updated availability
+            if (selectedDate) {
+                loadTimeSlots(selectedTherapist, selectedDate);
+            }
+            return;
+        }
+
+        setLockStatus('locked');
+
+        // Set up lock refresh interval (refresh every 4 minutes to keep 5-minute lock active)
+        lockRefreshInterval.current = setInterval(async () => {
+            if (selectedTherapist && slotIso && user?.id) {
+                await lockSlotInDatabase(selectedTherapist, slotIso, user.id, 5);
+            }
+        }, 4 * 60 * 1000);
+    }, [selectedTherapist, user?.id, selectedSlotIso, selectedDate, toast]);
+
+    // Cleanup locks on unmount or navigation away
+    useEffect(() => {
+        return () => {
+            // Release lock when component unmounts
+            if (selectedTherapist && user?.id && selectedSlotIso) {
+                unlockSlotInDatabase(selectedTherapist, selectedSlotIso, user.id);
+            }
+            if (lockRefreshInterval.current) {
+                clearInterval(lockRefreshInterval.current);
+            }
+            if (realtimeCleanup.current) {
+                realtimeCleanup.current();
+            }
+        };
+    }, [selectedTherapist, user?.id, selectedSlotIso]);
+
+    // Set up real-time subscription when therapist and date are selected
+    useEffect(() => {
+        if (!selectedTherapist || !selectedDate) return;
+
+        // Cleanup previous subscription
+        if (realtimeCleanup.current) {
+            realtimeCleanup.current();
+        }
+
+        const dateStr = selectedDate.toISOString().split('T')[0];
+
+        const { cleanup } = subscribeToSlotAvailability(selectedTherapist, dateStr, {
+            onAvailabilityUpdate: (update) => {
+                console.log('📡 Real-time slot update:', update);
+
+                // Refresh slots when changes occur
+                if (selectedDate) {
+                    loadTimeSlots(selectedTherapist, selectedDate);
+                }
+
+                // If our selected slot was booked by someone else, notify and deselect
+                if (update.type === 'booked' &&
+                    selectedSlotIso === update.slotDatetime &&
+                    update.bookedBy !== user?.id) {
+                    toast({
+                        title: 'Slot No Longer Available',
+                        description: 'The time slot you selected was just booked. Please choose another time.',
+                        variant: 'destructive'
+                    });
+                    setSelectedTime(null);
+                    setSelectedSlotIso(null);
+                    setLockStatus('none');
+                }
+            },
+            onError: (error) => {
+                console.error('Real-time subscription error:', error);
+            }
+        });
+
+        realtimeCleanup.current = cleanup;
+
+        return () => {
+            if (realtimeCleanup.current) {
+                realtimeCleanup.current();
+                realtimeCleanup.current = null;
+            }
+        };
+    }, [selectedTherapist, selectedDate, selectedSlotIso, user?.id, toast]);
 
     // Navigation functions
     const goToStep = (step: number) => {
@@ -573,9 +725,19 @@ export default function BookingPage() {
 
                                     <BookingCalendar
                                         selectedDate={selectedDate}
-                                        onDateSelect={(date) => {
+                                        onDateSelect={async (date) => {
+                                            // Release any existing lock
+                                            if (selectedTherapist && user?.id && selectedSlotIso) {
+                                                await unlockSlotInDatabase(selectedTherapist, selectedSlotIso, user.id);
+                                            }
+                                            if (lockRefreshInterval.current) {
+                                                clearInterval(lockRefreshInterval.current);
+                                                lockRefreshInterval.current = null;
+                                            }
                                             setSelectedDate(date);
-                                            setSelectedTime(null); // Reset time when date changes
+                                            setSelectedTime(null);
+                                            setSelectedSlotIso(null);
+                                            setLockStatus('none');
                                         }}
                                         availableDates={availableDates}
                                     />
@@ -617,8 +779,9 @@ export default function BookingPage() {
                                     <TimeSlotPicker
                                         slots={timeSlots}
                                         selectedTime={selectedTime}
-                                        onTimeSelect={setSelectedTime}
+                                        onTimeSelect={handleTimeSelect}
                                         loading={loadingSlots}
+                                        lockStatus={lockStatus}
                                     />
 
                                     {/* Navigation */}

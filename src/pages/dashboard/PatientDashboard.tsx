@@ -23,7 +23,10 @@ import {
     CheckCircle2,
     AlertCircle,
     LogOut,
-    ChevronRight
+    ChevronRight,
+    Copy,
+    Key,
+    ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +58,8 @@ export default function PatientDashboard() {
     const [loading, setLoading] = useState(true);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
     const [showHistory, setShowHistory] = useState(false);
+    const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
     // Redirect if not logged in
     useEffect(() => {
@@ -202,20 +207,61 @@ export default function PatientDashboard() {
                                 <Bell className="w-5 h-5 text-gray-600" />
                                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                             </button>
-                            <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50">
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-medium">
-                                    {user?.full_name?.charAt(0) || 'U'}
-                                </div>
-                                <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                                    {user?.full_name || 'User'}
-                                </span>
+                            {/* Profile Dropdown */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                                    className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                                >
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-medium">
+                                        {user?.full_name?.charAt(0) || 'U'}
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                                        {user?.full_name || 'User'}
+                                    </span>
+                                </button>
+                                {/* Dropdown Menu */}
+                                {profileMenuOpen && (
+                                    <>
+                                        {/* Backdrop to close on outside click */}
+                                        <div
+                                            className="fixed inset-0 z-40"
+                                            onClick={() => setProfileMenuOpen(false)}
+                                        />
+                                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                                            <div className="px-4 py-3 border-b border-gray-100">
+                                                <p className="font-medium text-gray-900">{user?.full_name}</p>
+                                                <p className="text-sm text-gray-500">{user?.email}</p>
+                                            </div>
+                                            <Link
+                                                to="/profile"
+                                                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+                                                onClick={() => setProfileMenuOpen(false)}
+                                            >
+                                                <User className="w-4 h-4 text-gray-400" />
+                                                <span className="text-gray-700">Profile Settings</span>
+                                            </Link>
+                                            <Link
+                                                to="/settings"
+                                                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
+                                                onClick={() => setProfileMenuOpen(false)}
+                                            >
+                                                <Settings className="w-4 h-4 text-gray-400" />
+                                                <span className="text-gray-700">Account Settings</span>
+                                            </Link>
+                                            <div className="border-t border-gray-100 mt-2 pt-2">
+                                                <button
+                                                    onClick={handleSignOut}
+                                                    className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 text-red-600 w-full text-left"
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    <span>Sign Out</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                            <button
-                                onClick={handleSignOut}
-                                className="p-2 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                            >
-                                <LogOut className="w-5 h-5" />
-                            </button>
                         </div>
                     </div>
                 </header>
@@ -305,60 +351,163 @@ export default function PatientDashboard() {
                                     </div>
                                 ) : upcomingBookings.length > 0 ? (
                                     <div className="space-y-4">
-                                        {upcomingBookings.map((booking) => (
-                                            <div
-                                                key={booking.id}
-                                                className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
-                                            >
-                                                <div className="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                                                    {booking.therapist?.user?.full_name?.charAt(0) || 'T'}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold text-gray-900 truncate">
-                                                        {booking.therapist?.user?.full_name || 'Therapist'}
-                                                    </p>
-                                                    <p className="text-sm text-slate-500 capitalize">
-                                                        {booking.session_mode?.replace(/_/g, ' ') || 'Session'} • {booking.duration_minutes} min
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="text-right">
-                                                        <p className="font-medium text-gray-900">
-                                                            {formatBookingDate(booking.scheduled_at)}
-                                                        </p>
-                                                        <div className="flex items-center gap-1 text-sm text-gray-500">
-                                                            <Clock className="w-3 h-3" />
-                                                            {formatBookingTime(booking.scheduled_at)}
+                                        {upcomingBookings.map((booking) => {
+                                            const isExpanded = expandedSessionId === booking.id;
+                                            // Access meeting credentials from the booking object
+                                            const meetingId = (booking as any).zoom_meeting_id;
+                                            const passcode = (booking as any).zoom_passcode;
+
+                                            return (
+                                                <div
+                                                    key={booking.id}
+                                                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all"
+                                                >
+                                                    {/* Main session info */}
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4">
+                                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                                            {booking.therapist?.user?.full_name?.charAt(0) || 'T'}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-semibold text-gray-900 truncate">
+                                                                {booking.therapist?.user?.full_name || 'Therapist'}
+                                                            </p>
+                                                            <p className="text-sm text-slate-500 capitalize">
+                                                                {booking.session_mode?.replace(/_/g, ' ') || 'Video Session'} • {booking.duration_minutes} min
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="text-right">
+                                                                <p className="font-medium text-gray-900">
+                                                                    {formatBookingDate(booking.scheduled_at)}
+                                                                </p>
+                                                                <div className="flex items-center gap-1 text-sm text-gray-500">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    {formatBookingTime(booking.scheduled_at)}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="btn-icy text-xs px-4"
+                                                                    asChild
+                                                                >
+                                                                    <Link to={`/call/${booking.id}`}>
+                                                                        <Video className="w-4 h-4 mr-1" />
+                                                                        Join
+                                                                    </Link>
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => setExpandedSessionId(isExpanded ? null : booking.id)}
+                                                                    className="text-xs"
+                                                                >
+                                                                    <Key className="w-3 h-3 mr-1" />
+                                                                    Details
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            size="sm"
-                                                            className="btn-icy text-xs px-3"
-                                                            asChild
-                                                        >
-                                                            <Link to={`/call/${booking.id}`}>
-                                                                <Video className="w-3 h-3 mr-1" />
-                                                                Join
-                                                            </Link>
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() => handleCancelBooking(booking.id)}
-                                                            disabled={cancellingId === booking.id}
-                                                            className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                        >
-                                                            {cancellingId === booking.id ? (
-                                                                <RefreshCw className="w-3 h-3 animate-spin" />
-                                                            ) : (
-                                                                <X className="w-3 h-3" />
-                                                            )}
-                                                        </Button>
-                                                    </div>
+
+                                                    {/* Expandable meeting details */}
+                                                    {isExpanded && (
+                                                        <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-gray-50 to-white">
+                                                            <div className="flex flex-wrap gap-4">
+                                                                {/* Meeting ID */}
+                                                                <div className="flex-1 min-w-[200px] bg-white p-3 rounded-xl border border-gray-100">
+                                                                    <p className="text-xs text-gray-500 mb-1">Meeting ID</p>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="font-mono font-medium text-gray-900">
+                                                                            {meetingId || 'Not available'}
+                                                                        </p>
+                                                                        {meetingId && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(meetingId);
+                                                                                    toast({ title: 'Copied!', description: 'Meeting ID copied to clipboard' });
+                                                                                }}
+                                                                                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                                                            >
+                                                                                <Copy className="w-4 h-4 text-gray-400" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Passcode */}
+                                                                <div className="flex-1 min-w-[150px] bg-white p-3 rounded-xl border border-gray-100">
+                                                                    <p className="text-xs text-gray-500 mb-1">Passcode</p>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="font-mono font-medium text-gray-900">
+                                                                            {passcode || 'Not set'}
+                                                                        </p>
+                                                                        {passcode && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(passcode);
+                                                                                    toast({ title: 'Copied!', description: 'Passcode copied to clipboard' });
+                                                                                }}
+                                                                                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                                                            >
+                                                                                <Copy className="w-4 h-4 text-gray-400" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Meeting Link */}
+                                                                <div className="w-full bg-white p-3 rounded-xl border border-gray-100">
+                                                                    <p className="text-xs text-gray-500 mb-1">Meeting Link</p>
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <p className="font-mono text-sm text-gray-600 truncate flex-1">
+                                                                            {booking.meeting_link || booking.meeting_url || `${window.location.origin}/call/${booking.id}`}
+                                                                        </p>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const link = booking.meeting_link || booking.meeting_url || `${window.location.origin}/call/${booking.id}`;
+                                                                                navigator.clipboard.writeText(link);
+                                                                                toast({ title: 'Copied!', description: 'Meeting link copied to clipboard' });
+                                                                            }}
+                                                                            className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+                                                                        >
+                                                                            <Copy className="w-4 h-4 text-gray-400" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Action buttons */}
+                                                            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => handleCancelBooking(booking.id)}
+                                                                    disabled={cancellingId === booking.id}
+                                                                    className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                                >
+                                                                    {cancellingId === booking.id ? (
+                                                                        <RefreshCw className="w-3 h-3 animate-spin mr-1" />
+                                                                    ) : (
+                                                                        <X className="w-3 h-3 mr-1" />
+                                                                    )}
+                                                                    Cancel Session
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="btn-icy"
+                                                                    asChild
+                                                                >
+                                                                    <Link to={`/call/${booking.id}`}>
+                                                                        <ExternalLink className="w-4 h-4 mr-1" />
+                                                                        Join Session
+                                                                    </Link>
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="text-center py-12">

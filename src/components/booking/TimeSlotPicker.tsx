@@ -1,18 +1,28 @@
 /**
  * TimeSlotPicker - Premium time slot selection component
+ * Enhanced with real-time slot locking indicators
  */
 
 import { useEffect, useRef, useMemo } from 'react';
-import { Clock, Sun, Sunset, Moon } from 'lucide-react';
+import { Clock, Sun, Sunset, Moon, Loader2 } from 'lucide-react';
 import { gsap } from 'gsap';
 import type { TimeSlot } from '@/lib/bookingService';
 
-interface TimeSlotPickerProps {
-    slots: TimeSlot[];
-    selectedTime: string | null;
-    onTimeSelect: (time: string) => void;
-    loading?: boolean;
+// Extended TimeSlot with real-time properties
+export interface RealtimeTimeSlot extends TimeSlot {
+    isLocked?: boolean;
+    lockedBy?: string;
+    isBeingBooked?: boolean;
 }
+
+interface TimeSlotPickerProps {
+    slots: TimeSlot[] | RealtimeTimeSlot[];
+    selectedTime: string | null;
+    onTimeSelect: (time: string, slotIso?: string) => void | Promise<void> | Promise<boolean>;
+    loading?: boolean;
+    lockStatus?: 'none' | 'locking' | 'locked' | 'failed';
+}
+
 
 const PERIOD_ICONS = {
     morning: Sun,
@@ -51,13 +61,14 @@ export default function TimeSlotPicker({
     slots,
     selectedTime,
     onTimeSelect,
-    loading = false
+    loading = false,
+    lockStatus = 'none'
 }: TimeSlotPickerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Group slots by period
     const groupedSlots = useMemo(() => {
-        const groups: Record<string, TimeSlot[]> = {
+        const groups: Record<string, RealtimeTimeSlot[]> = {
             morning: [],
             afternoon: [],
             evening: []
@@ -65,7 +76,7 @@ export default function TimeSlotPicker({
 
         slots.forEach(slot => {
             if (groups[slot.period]) {
-                groups[slot.period].push(slot);
+                groups[slot.period].push(slot as RealtimeTimeSlot);
             }
         });
 
@@ -93,19 +104,20 @@ export default function TimeSlotPicker({
         );
     }, [slots, loading]);
 
-    const handleTimeClick = (time: string, available: boolean) => {
-        if (!available) return;
-
-        onTimeSelect(time);
+    const handleTimeClick = async (slot: RealtimeTimeSlot) => {
+        if (!slot.available || slot.isBeingBooked) return;
 
         // Animate selection
-        const button = containerRef.current?.querySelector(`[data-time="${time}"]`);
+        const button = containerRef.current?.querySelector(`[data-time="${slot.time}"]`);
         if (button) {
             gsap.fromTo(button,
                 { scale: 0.9 },
                 { scale: 1, duration: 0.3, ease: 'back.out(1.7)' }
             );
         }
+
+        // Call onTimeSelect with both time and ISO datetime
+        await onTimeSelect(slot.time, slot.iso);
     };
 
     if (loading) {
@@ -173,30 +185,49 @@ export default function TimeSlotPicker({
                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                             {periodSlots.map((slot) => {
                                 const isSelected = selectedTime === slot.time;
+                                const isBeingBooked = slot.isBeingBooked && !isSelected;
+                                const isLocking = isSelected && lockStatus === 'locking';
+
+                                // Determine if slot is effectively unavailable
+                                const effectivelyUnavailable = !slot.available || isBeingBooked;
 
                                 return (
                                     <button
                                         key={slot.time}
                                         data-time={slot.time}
-                                        onClick={() => handleTimeClick(slot.time, slot.available)}
-                                        disabled={!slot.available}
+                                        onClick={() => handleTimeClick(slot)}
+                                        disabled={effectivelyUnavailable || isLocking}
                                         className={`
                                             py-3 px-4 rounded-xl text-sm font-medium
                                             transition-all duration-200 relative
                                             ${isSelected
                                                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 scale-105'
-                                                : slot.available
-                                                    ? 'bg-white hover:bg-gray-50 text-gray-700 hover:shadow-md border border-gray-200 hover:border-gray-300'
-                                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed line-through'
+                                                : isBeingBooked
+                                                    ? 'bg-yellow-50 text-yellow-700 border-2 border-yellow-300 cursor-not-allowed animate-pulse'
+                                                    : slot.available
+                                                        ? 'bg-white hover:bg-gray-50 text-gray-700 hover:shadow-md border border-gray-200 hover:border-gray-300'
+                                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed line-through'
                                             }
                                         `}
                                     >
-                                        {slot.time}
+                                        <span className="flex items-center justify-center gap-1">
+                                            {isLocking && (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            )}
+                                            {slot.time}
+                                        </span>
 
                                         {/* Selected indicator */}
-                                        {isSelected && (
+                                        {isSelected && !isLocking && (
                                             <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow">
                                                 <span className="w-2 h-2 bg-cyan-500 rounded-full" />
+                                            </span>
+                                        )}
+
+                                        {/* Being booked indicator */}
+                                        {isBeingBooked && (
+                                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center shadow">
+                                                <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
                                             </span>
                                         )}
                                     </button>
@@ -207,9 +238,29 @@ export default function TimeSlotPicker({
                 );
             })}
 
+            {/* Legend */}
+            <div className="flex flex-wrap items-center justify-center gap-4 mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <div className="w-3 h-3 rounded-full bg-white border border-gray-300" />
+                    <span>Available</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600" />
+                    <span>Selected</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <div className="w-3 h-3 rounded-full bg-yellow-400 animate-pulse" />
+                    <span>Being booked</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <div className="w-3 h-3 rounded-full bg-gray-300" />
+                    <span>Unavailable</span>
+                </div>
+            </div>
+
             {/* Help text */}
-            <p className="text-center text-sm text-gray-400">
-                All times are shown in your local timezone
+            <p className="text-center text-xs text-gray-400 mt-2">
+                All times are shown in your local timezone • Slots are reserved for 5 minutes
             </p>
         </div>
     );

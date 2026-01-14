@@ -108,6 +108,7 @@ import * as encryptionService from './encryptionService';
 import * as edgeFunctionsClient from './edgeFunctionsClient';
 import * as analyticsService from './analyticsService';
 import * as notificationService from './notificationService';
+import * as bookingRealtimeService from './bookingRealtimeService';
 
 export {
     therapistService,
@@ -118,7 +119,8 @@ export {
     encryptionService,
     edgeFunctionsClient,
     analyticsService,
-    notificationService
+    notificationService,
+    bookingRealtimeService
 };
 
 // Encryption Service

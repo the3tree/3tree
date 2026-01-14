@@ -27,7 +27,9 @@ import {
     X,
     User,
     Edit,
-    Star
+    Star,
+    Copy,
+    Key
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +44,11 @@ interface SessionData {
     status: string;
     duration_minutes: number;
     patient_id: string;
+    // Meeting credentials
+    meeting_link?: string;
+    zoom_meeting_id?: string;
+    zoom_passcode?: string;
+    zoom_host_key?: string;
 }
 
 interface TherapistStats {
@@ -76,6 +83,7 @@ export default function TherapistDashboard() {
     const [therapistProfile, setTherapistProfile] = useState<any>(null);
     const [availabilityOpen, setAvailabilityOpen] = useState(false);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
     const [availability, setAvailability] = useState<{ [key: string]: { enabled: boolean; start: string; end: string } }>({
         monday: { enabled: true, start: '09:00', end: '17:00' },
         tuesday: { enabled: true, start: '09:00', end: '17:00' },
@@ -142,7 +150,7 @@ export default function TherapistDashboard() {
             // Get start of month for monthly stats
             const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 
-            // Fetch today's sessions
+            // Fetch today's sessions with meeting credentials
             const { data: todayBookings } = await supabase
                 .from('bookings')
                 .select(`
@@ -152,6 +160,10 @@ export default function TherapistDashboard() {
                     status,
                     duration_minutes,
                     patient_id,
+                    meeting_link,
+                    zoom_meeting_id,
+                    zoom_passcode,
+                    zoom_host_key,
                     users!bookings_patient_id_fkey (
                         full_name
                     )
@@ -171,7 +183,12 @@ export default function TherapistDashboard() {
                 service_type: booking.service_type,
                 status: booking.status,
                 duration_minutes: booking.duration_minutes || 50,
-                patient_id: booking.patient_id
+                patient_id: booking.patient_id,
+                // Meeting credentials (therapist gets all including host key)
+                meeting_link: booking.meeting_link,
+                zoom_meeting_id: booking.zoom_meeting_id,
+                zoom_passcode: booking.zoom_passcode,
+                zoom_host_key: booking.zoom_host_key,
             }));
 
             setSessions(sessionsData);
@@ -578,65 +595,175 @@ export default function TherapistDashboard() {
 
                                 {sessions.length > 0 ? (
                                     <div className="space-y-4">
-                                        {sessions.map((session) => (
-                                            <div
-                                                key={session.id}
-                                                className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl transition-colors ${session.status === 'completed'
-                                                    ? 'bg-gray-50 opacity-75'
-                                                    : 'bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-100'
-                                                    }`}
-                                            >
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg ${session.status === 'completed'
-                                                    ? 'bg-gray-200 text-gray-500'
-                                                    : 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white'
-                                                    }`}>
-                                                    {session.patient_initial}
-                                                </div>
+                                        {sessions.map((session) => {
+                                            const isExpanded = expandedSessionId === session.id;
 
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <p className="font-semibold text-gray-900">{session.patient_name}</p>
-                                                        {getStatusBadge(session.status)}
+                                            return (
+                                                <div
+                                                    key={session.id}
+                                                    className={`rounded-2xl overflow-hidden transition-all ${session.status === 'completed'
+                                                        ? 'bg-gray-50 opacity-75'
+                                                        : 'bg-white border border-gray-200 shadow-sm hover:shadow-md'
+                                                        }`}
+                                                >
+                                                    {/* Main session info row */}
+                                                    <div className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 ${session.status !== 'completed' ? 'bg-gradient-to-r from-cyan-50/50 to-blue-50/50' : ''}`}>
+                                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg ${session.status === 'completed'
+                                                            ? 'bg-gray-200 text-gray-500'
+                                                            : 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white'
+                                                            }`}>
+                                                            {session.patient_initial}
+                                                        </div>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <p className="font-semibold text-gray-900">{session.patient_name}</p>
+                                                                {getStatusBadge(session.status)}
+                                                            </div>
+                                                            <p className="text-sm text-gray-500">
+                                                                {formatServiceType(session.service_type)} • {session.duration_minutes} min
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2 text-gray-500">
+                                                            <Clock className="w-4 h-4" />
+                                                            <span className="font-medium">{formatTime(session.scheduled_at)}</span>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            {(session.status === 'confirmed' || session.status === 'pending') && (
+                                                                <>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        className="btn-icy text-xs"
+                                                                        onClick={() => handleStartSession(session.id)}
+                                                                    >
+                                                                        <Video className="w-3 h-3 mr-1" />
+                                                                        Start
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                                                                        className="text-xs"
+                                                                    >
+                                                                        <Key className="w-3 h-3 mr-1" />
+                                                                        {isExpanded ? 'Hide' : 'Details'}
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleCompleteSession(session.id)}
+                                                                    >
+                                                                        <CheckCircle2 className="w-3 h-3" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
+                                                            {session.status === 'completed' && (
+                                                                <Button size="sm" variant="ghost" className="text-xs">
+                                                                    <FileText className="w-3 h-3 mr-1" />
+                                                                    Notes
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <p className="text-sm text-gray-500">
-                                                        {formatServiceType(session.service_type)} • {session.duration_minutes} min
-                                                    </p>
-                                                </div>
 
-                                                <div className="flex items-center gap-2 text-gray-500">
-                                                    <Clock className="w-4 h-4" />
-                                                    <span className="font-medium">{formatTime(session.scheduled_at)}</span>
-                                                </div>
+                                                    {/* Expandable meeting details (therapist sees all including host key) */}
+                                                    {isExpanded && (session.status === 'confirmed' || session.status === 'pending') && (
+                                                        <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-gray-50/50 to-white">
+                                                            <p className="text-xs font-medium text-gray-500 mb-3">Meeting Credentials (Host)</p>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                                {/* Meeting ID */}
+                                                                <div className="bg-white p-3 rounded-xl border border-gray-100">
+                                                                    <p className="text-xs text-gray-400 mb-1">Meeting ID</p>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="font-mono font-medium text-gray-900 text-sm">
+                                                                            {session.zoom_meeting_id || 'Not set'}
+                                                                        </p>
+                                                                        {session.zoom_meeting_id && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(session.zoom_meeting_id!);
+                                                                                    toast({ title: 'Copied!', description: 'Meeting ID copied' });
+                                                                                }}
+                                                                                className="p-1 hover:bg-gray-100 rounded"
+                                                                            >
+                                                                                <Copy className="w-3 h-3 text-gray-400" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
 
-                                                <div className="flex gap-2">
-                                                    {(session.status === 'confirmed' || session.status === 'pending') && (
-                                                        <>
-                                                            <Button
-                                                                size="sm"
-                                                                className="btn-icy text-xs"
-                                                                onClick={() => handleStartSession(session.id)}
-                                                            >
-                                                                <Video className="w-3 h-3 mr-1" />
-                                                                Start
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => handleCompleteSession(session.id)}
-                                                            >
-                                                                <CheckCircle2 className="w-3 h-3" />
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                    {session.status === 'completed' && (
-                                                        <Button size="sm" variant="ghost" className="text-xs">
-                                                            <FileText className="w-3 h-3 mr-1" />
-                                                            Notes
-                                                        </Button>
+                                                                {/* Passcode */}
+                                                                <div className="bg-white p-3 rounded-xl border border-gray-100">
+                                                                    <p className="text-xs text-gray-400 mb-1">Passcode</p>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="font-mono font-medium text-gray-900 text-sm">
+                                                                            {session.zoom_passcode || 'Not set'}
+                                                                        </p>
+                                                                        {session.zoom_passcode && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(session.zoom_passcode!);
+                                                                                    toast({ title: 'Copied!', description: 'Passcode copied' });
+                                                                                }}
+                                                                                className="p-1 hover:bg-gray-100 rounded"
+                                                                            >
+                                                                                <Copy className="w-3 h-3 text-gray-400" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Host Key (Therapist Only) */}
+                                                                <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                                                                    <p className="text-xs text-amber-600 mb-1 flex items-center gap-1">
+                                                                        <Key className="w-3 h-3" />
+                                                                        Host Key (Private)
+                                                                    </p>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="font-mono font-bold text-amber-800 text-sm">
+                                                                            {session.zoom_host_key || 'Not set'}
+                                                                        </p>
+                                                                        {session.zoom_host_key && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(session.zoom_host_key!);
+                                                                                    toast({ title: 'Copied!', description: 'Host key copied' });
+                                                                                }}
+                                                                                className="p-1 hover:bg-amber-100 rounded"
+                                                                            >
+                                                                                <Copy className="w-3 h-3 text-amber-600" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Meeting Link */}
+                                                            <div className="mt-3 bg-white p-3 rounded-xl border border-gray-100">
+                                                                <p className="text-xs text-gray-400 mb-1">Meeting Link</p>
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="font-mono text-xs text-gray-600 truncate flex-1">
+                                                                        {session.meeting_link || `${window.location.origin}/call/${session.id}`}
+                                                                    </p>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const link = session.meeting_link || `${window.location.origin}/call/${session.id}`;
+                                                                            navigator.clipboard.writeText(link);
+                                                                            toast({ title: 'Copied!', description: 'Meeting link copied to clipboard' });
+                                                                        }}
+                                                                        className="p-1 hover:bg-gray-100 rounded flex-shrink-0"
+                                                                    >
+                                                                        <Copy className="w-3 h-3 text-gray-400" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="text-center py-12">
