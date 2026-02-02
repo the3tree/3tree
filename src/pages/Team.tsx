@@ -105,13 +105,19 @@ export default function Team() {
                         specialties,
                         languages,
                         hourly_rate,
-                        user:users(full_name, avatar_url)
+                        user:users!inner(full_name, avatar_url, role)
                     `)
           .eq('is_approved', true)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .eq('user.role', 'therapist');
 
         if (therapists && therapists.length > 0) {
-          const dbMembers: TeamMember[] = therapists.map((t: any) => ({
+          // Additional client-side filter to ensure only therapists are shown
+          const validTherapists = therapists.filter((t: any) => 
+            t.user?.role === 'therapist' || t.user?.role === 'admin'
+          );
+          
+          const dbMembers: TeamMember[] = validTherapists.map((t: any) => ({
             id: t.id,
             name: t.user?.full_name || 'Therapist',
             role: 'Licensed Therapist',

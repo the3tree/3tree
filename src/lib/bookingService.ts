@@ -343,6 +343,7 @@ function generateId(): string {
 /**
  * Fetch all approved therapists from database
  * NO MOCK DATA - Uses only real Supabase data
+ * IMPORTANT: Only fetches users with role='therapist' to prevent clients from appearing
  */
 export async function fetchTherapists(): Promise<TherapistWithDetails[]> {
     try {
@@ -352,10 +353,11 @@ export async function fetchTherapists(): Promise<TherapistWithDetails[]> {
             .from('therapists')
             .select(`
                 *,
-                user:users(*)
+                user:users!inner(*)
             `)
             .eq('is_approved', true)
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('user.role', 'therapist');
 
         if (error) {
             console.error('❌ Error fetching therapists:', error);
@@ -363,8 +365,12 @@ export async function fetchTherapists(): Promise<TherapistWithDetails[]> {
         }
 
         if (data && data.length > 0) {
-            console.log(`✅ Found ${data.length} therapists in database`);
-            return data as TherapistWithDetails[];
+            // Additional client-side filter to ensure only therapists are shown
+            const therapistsOnly = data.filter((t: any) => 
+                t.user?.role === 'therapist' || t.user?.role === 'admin'
+            );
+            console.log(`✅ Found ${therapistsOnly.length} verified therapists in database`);
+            return therapistsOnly as TherapistWithDetails[];
         }
 
         console.warn('⚠️ No therapists found in database');
@@ -378,6 +384,7 @@ export async function fetchTherapists(): Promise<TherapistWithDetails[]> {
 
 /**
  * Fetch single therapist by ID from database only
+ * IMPORTANT: Validates that user has therapist role
  */
 export async function fetchTherapistById(therapistId: string): Promise<TherapistWithDetails | null> {
     try {
@@ -387,10 +394,11 @@ export async function fetchTherapistById(therapistId: string): Promise<Therapist
             .from('therapists')
             .select(`
                 *,
-                user:users(*)
+                user:users!inner(*)
             `)
             .eq('id', therapistId)
             .eq('is_active', true)
+            .eq('user.role', 'therapist')
             .single();
 
         if (error) {
@@ -398,12 +406,12 @@ export async function fetchTherapistById(therapistId: string): Promise<Therapist
             throw error;
         }
 
-        if (data) {
+        if (data && (data.user?.role === 'therapist' || data.user?.role === 'admin')) {
             console.log(`✅ Found therapist: ${data.user?.full_name}`);
             return data as TherapistWithDetails;
         }
 
-        console.warn(`⚠️ Therapist ${therapistId} not found`);
+        console.warn(`⚠️ Therapist ${therapistId} not found or invalid role`);
         return null;
     } catch (error) {
         console.error('❌ Failed to fetch therapist from database:', error);

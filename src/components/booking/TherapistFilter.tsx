@@ -42,7 +42,7 @@ export const LANGUAGES = [
     'Urdu',
 ];
 
-export const PSYCHOTHERAPY_SERVICES = [
+export const THERAPY_SERVICES = [
     { id: 'individual', label: 'Individual Therapy' },
     { id: 'couple', label: 'Couple Therapy' },
     { id: 'group', label: 'Group Therapy' },
@@ -227,11 +227,11 @@ export default function TherapistFilter({
                             Service Type
                         </h4>
                         
-                        {/* Psychotherapy Services */}
+                        {/* Therapy Services */}
                         <div className="mb-4">
-                            <p className="text-xs font-medium text-cyan-700 mb-2">Psychotherapy Services</p>
+                            <p className="text-xs font-medium text-cyan-700 mb-2">Therapy Services</p>
                             <div className="space-y-2">
-                                {PSYCHOTHERAPY_SERVICES.map(service => (
+                                {THERAPY_SERVICES.map(service => (
                                     <label
                                         key={service.id}
                                         className={`flex items-center gap-2 cursor-pointer group ${
