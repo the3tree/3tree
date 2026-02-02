@@ -1,23 +1,25 @@
 /**
  * BookingPage - Complete premium booking experience
- * 5-step booking flow with beautiful UI and animations
- * Enhanced with real-time slot synchronization
+ * 6-step booking flow with beautiful UI and animations
+ * Enhanced with real-time slot synchronization and service-specific questionnaires
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Search, Filter, X, AlertCircle } from 'lucide-react';
 import { gsap } from 'gsap';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
 
 // Booking Components
 import {
     BookingStepIndicator,
     ServiceSelector,
+    ServiceQuestionnaire,
     TherapistCard,
     TherapistCardSkeleton,
     BookingCalendar,
@@ -25,6 +27,9 @@ import {
     BookingConfirmation,
     BookingSuccess
 } from '@/components/booking';
+
+// Therapist Filter
+import TherapistFilter, { applyTherapistFilters, defaultFilters } from '@/components/booking/TherapistFilter';
 
 // Booking Service
 import {
@@ -55,21 +60,55 @@ import {
     sendMeetingLink
 } from '@/lib/services/bookingAutomation';
 
+// Form & Assessment Services
+import { getUserSubmissions } from '@/lib/services/formService';
+import { getUserAssessments } from '@/lib/services/assessmentService';
+
+// Service Questionnaire Service
+import {
+    getQuestionnaireForService,
+    saveQuestionnaireSubmission,
+    hasCompletedQuestionnaire,
+    type ServiceQuestionnaire as ServiceQuestionnaireType,
+} from '@/lib/services/serviceQuestionnaireService';
+
 // Razorpay Payment
 import { openPaymentModal, type RazorpayPaymentResult } from '@/lib/services/razorpayService';
 
-// Steps configuration
+// Steps configuration - now includes Questionnaire step
 const STEPS = [
     { number: 1, label: 'Service' },
-    { number: 2, label: 'Therapist' },
-    { number: 3, label: 'Date' },
-    { number: 4, label: 'Time' },
-    { number: 5, label: 'Confirm' }
+    { number: 2, label: 'Questionnaire' },
+    { number: 3, label: 'Therapist' },
+    { number: 4, label: 'Date' },
+    { number: 5, label: 'Time' },
+    { number: 6, label: 'Confirm' }
+];
+
+// Onboarding Steps
+const ONBOARDING_STEPS = [
+    {
+        id: 'wellness-check',
+        title: 'Wellness Check',
+        description: 'A 5-minute checkout of your current mental wellbeing (GAD-7).',
+        action: 'Start Assessment',
+        link: '/assessments/gad-7?redirect=/booking',
+        icon: 'BarChart'
+    },
+    {
+        id: 'intake-form',
+        title: 'Client Intake Form',
+        description: 'Essential information to help us match you with the best care.',
+        action: 'Complete Form',
+        link: '/intake?redirect=/booking',
+        icon: 'FileText'
+    }
 ];
 
 export default function BookingPage() {
     const { therapistId } = useParams();
-    const { user } = useAuth();
+    const [searchParams] = useSearchParams();
+    const { user, session } = useAuth();
     const { toast } = useToast();
 
     // State
@@ -78,6 +117,11 @@ export default function BookingPage() {
     const [selectedTherapist, setSelectedTherapist] = useState<string | null>(therapistId || null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+    // Questionnaire state
+    const [currentQuestionnaire, setCurrentQuestionnaire] = useState<ServiceQuestionnaireType | null>(null);
+    const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false);
+    const [questionnaireData, setQuestionnaireData] = useState<Record<string, unknown> | null>(null);
 
     // Data state
     const [therapists, setTherapists] = useState<TherapistWithDetails[]>([]);
@@ -98,7 +142,94 @@ export default function BookingPage() {
     // Filter state
     const [searchQuery, setSearchQuery] = useState('');
     const [filterOpen, setFilterOpen] = useState(false);
-    const [specialtyFilter, setSpecialtyFilter] = useState<string | null>(null);
+    const [therapistFilters, setTherapistFilters] = useState<import('@/components/booking/TherapistFilter').TherapistFilters>({
+        specializations: [],
+        languages: [],
+        serviceTypes: [],
+        counsellingModes: [],
+        sessionTimes: [],
+        onlineOnly: false,
+        nextAvailable: false,
+    });
+
+    // Onboarding State
+    const [onboardingStatus, setOnboardingStatus] = useState<'loading' | 'required' | 'complete'>('loading');
+    const [stepsStatus, setStepsStatus] = useState({
+        assessment: false,
+        intake: false
+    });
+
+    // Check Onboarding Logic
+    useEffect(() => {
+        async function checkOnboarding() {
+            if (!user) {
+                // If not logged in, we can't check, but we'll assume they need to log in first
+                // For now, let's treat as 'loading' or bypass if we want guests to see services
+                setOnboardingStatus('complete'); // Allow guests to browse services first
+                return;
+            }
+
+            // Only clients need onboarding before booking
+            const sessionRole = session?.user?.user_metadata?.role as string | undefined;
+            const effectiveRole = user.role || sessionRole || 'client';
+
+            if (effectiveRole !== 'client') {
+                setOnboardingStatus('complete');
+                return;
+            }
+
+            // If the user has a therapist profile, skip client onboarding
+            try {
+                const { data: therapistProfile, error: therapistError } = await supabase
+                    .from('therapists')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (!therapistError && therapistProfile) {
+                    setOnboardingStatus('complete');
+                    return;
+                }
+            } catch (error) {
+                console.warn('Therapist profile check failed:', error);
+            }
+
+            try {
+                // 1. Check existing bookings
+                const { getUserBookings } = await import('@/lib/bookingService');
+                const bookings = await getUserBookings(user.id);
+
+                if (bookings.length > 0) {
+                    setOnboardingStatus('complete');
+                    return;
+                }
+
+                // 2. Check Assessment (GAD-7)
+                const assessments = await getUserAssessments(user.id);
+                const hasAssessment = assessments.some(a => a.assessment_id === 'gad7');
+
+                // 3. Check Intake Form
+                const forms = await getUserSubmissions(user.id);
+                const hasIntake = forms.some(f => f.form_id === 'intake-general');
+
+                setStepsStatus({
+                    assessment: hasAssessment,
+                    intake: hasIntake
+                });
+
+                if (hasAssessment && hasIntake) {
+                    setOnboardingStatus('complete');
+                } else {
+                    setOnboardingStatus('required');
+                }
+            } catch (error) {
+                console.error('Error checking onboarding:', error);
+                setOnboardingStatus('complete'); // Fail safe
+            }
+        }
+
+        checkOnboarding();
+    }, [user]);
 
     // Real-time slot state
     const [lockStatus, setLockStatus] = useState<'none' | 'locking' | 'locked' | 'failed'>('none');
@@ -119,6 +250,39 @@ export default function BookingPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Auto-select service from URL parameter and skip to step 2
+    useEffect(() => {
+        const serviceParam = searchParams.get('service');
+        if (serviceParam && !selectedService) {
+            // Validate that the service exists
+            const validService = serviceTypes.find(s => s.id === serviceParam);
+            if (validService) {
+                setSelectedService(serviceParam);
+                // Skip step 1 (service selection) and go to step 2 (questionnaire)
+                setCurrentStep(2);
+            }
+        }
+    }, [searchParams, selectedService]);
+
+    // Load questionnaire when service is selected
+    useEffect(() => {
+        if (selectedService) {
+            const questionnaire = getQuestionnaireForService(selectedService);
+            setCurrentQuestionnaire(questionnaire);
+            
+            // Check if user has already completed questionnaire for this service
+            if (user?.id && questionnaire) {
+                hasCompletedQuestionnaire(user.id, selectedService).then(completed => {
+                    setQuestionnaireCompleted(completed);
+                });
+            }
+        } else {
+            setCurrentQuestionnaire(null);
+            setQuestionnaireCompleted(false);
+            setQuestionnaireData(null);
+        }
+    }, [selectedService, user?.id]);
+
     // Load available dates when therapist is selected
     useEffect(() => {
         if (selectedTherapist) {
@@ -133,7 +297,7 @@ export default function BookingPage() {
         }
     }, [selectedTherapist, selectedDate]);
 
-    // Skip to step 2 if therapist is pre-selected
+    // Skip to step 3 if therapist is pre-selected (adjusted for new step)
     useEffect(() => {
         if (therapistId && therapists.length > 0) {
             const therapist = therapists.find(t => t.id === therapistId);
@@ -335,21 +499,22 @@ export default function BookingPage() {
         };
     }, [selectedTherapist, selectedDate, selectedSlotIso, user?.id, toast]);
 
-    // Navigation functions
+    // Navigation functions - updated for 6-step flow
     const goToStep = (step: number) => {
-        if (step < 1 || step > 5) return;
+        if (step < 1 || step > 6) return;
 
-        // Validate navigation
+        // Validate navigation (updated for new step order)
         if (step >= 2 && !selectedService) return;
-        if (step >= 3 && !selectedTherapist) return;
-        if (step >= 4 && !selectedDate) return;
-        if (step >= 5 && !selectedTime) return;
+        if (step >= 3 && !questionnaireCompleted && currentQuestionnaire) return;
+        if (step >= 4 && !selectedTherapist) return;
+        if (step >= 5 && !selectedDate) return;
+        if (step >= 6 && !selectedTime) return;
 
         setCurrentStep(step);
     };
 
     const goNext = () => {
-        if (currentStep < 5) {
+        if (currentStep < 6) {
             setCurrentStep(currentStep + 1);
         }
     };
@@ -358,6 +523,42 @@ export default function BookingPage() {
         if (currentStep > 1) {
             setCurrentStep(currentStep - 1);
         }
+    };
+
+    // Handle questionnaire completion
+    const handleQuestionnaireComplete = async (data: Record<string, unknown>) => {
+        if (!user?.id || !selectedService || !currentQuestionnaire) return;
+
+        setQuestionnaireData(data);
+        
+        // Save questionnaire submission
+        const result = await saveQuestionnaireSubmission(
+            user.id,
+            currentQuestionnaire.id,
+            selectedService,
+            data
+        );
+
+        if (result.success) {
+            setQuestionnaireCompleted(true);
+            toast({
+                title: 'Questionnaire Completed',
+                description: 'Thank you for completing the intake questionnaire.',
+            });
+            goNext();
+        } else {
+            toast({
+                title: 'Error',
+                description: 'Failed to save questionnaire. Please try again.',
+                variant: 'destructive'
+            });
+        }
+    };
+
+    // Handle questionnaire skip (if allowed)
+    const handleQuestionnaireSkip = () => {
+        setQuestionnaireCompleted(true);
+        goNext();
     };
 
     // Handle booking submission
@@ -423,48 +624,49 @@ export default function BookingPage() {
             }
         };
 
+        // TEMPORARILY SKIP PAYMENT - Book directly without payment
         // For PAID services - open Razorpay payment modal
-        if (currentService.price > 0) {
-            setSubmitting(true);
+        // if (currentService.price > 0) {
+        //     setSubmitting(true);
 
-            openPaymentModal(
-                {
-                    bookingId: `pending_${Date.now()}`,
-                    amount: currentService.price,
-                    currency: 'INR',
-                    customerName: user.email?.split('@')[0] || 'Customer',
-                    customerEmail: user.email || '',
-                    customerPhone: '',
-                    serviceName: currentService.name,
-                    therapistName: currentTherapist.user.full_name,
-                },
-                // On Payment Success
-                async (paymentResult: RazorpayPaymentResult) => {
-                    console.log('Payment successful:', paymentResult);
-                    try {
-                        await completeBooking();
-                    } catch (error) {
-                        console.error('Booking after payment failed:', error);
-                        toast({
-                            title: 'Booking Failed',
-                            description: 'Payment successful but booking failed. Please contact support.',
-                            variant: 'destructive'
-                        });
-                    } finally {
-                        setSubmitting(false);
-                    }
-                },
-                // On Payment Failure/Cancel
-                (error: string) => {
-                    console.log('Payment failed:', error);
-                    setSubmitting(false);
-                    if (error !== 'Payment cancelled') {
-                        toast({ title: 'Payment Failed', description: error, variant: 'destructive' });
-                    }
-                }
-            );
-        } else {
-            // For FREE services - create booking directly
+        //     openPaymentModal(
+        //         {
+        //             bookingId: `pending_${Date.now()}`,
+        //             amount: currentService.price,
+        //             currency: 'INR',
+        //             customerName: user.email?.split('@')[0] || 'Customer',
+        //             customerEmail: user.email || '',
+        //             customerPhone: '9999999999', // Default phone to skip contact details popup
+        //             serviceName: currentService.name,
+        //             therapistName: currentTherapist.user.full_name,
+        //         },
+        //         // On Payment Success
+        //         async (paymentResult: RazorpayPaymentResult) => {
+        //             console.log('Payment successful:', paymentResult);
+        //             try {
+        //                 await completeBooking();
+        //             } catch (error) {
+        //                 console.error('Booking after payment failed:', error);
+        //                 toast({
+        //                     title: 'Booking Failed',
+        //                     description: 'Payment successful but booking failed. Please contact support.',
+        //                     variant: 'destructive'
+        //                 });
+        //             } finally {
+        //                 setSubmitting(false);
+        //             }
+        //         },
+        //         // On Payment Failure/Cancel
+        //         (error: string) => {
+        //             console.log('Payment failed:', error);
+        //             setSubmitting(false);
+        //             if (error !== 'Payment cancelled') {
+        //                 toast({ title: 'Payment Failed', description: error, variant: 'destructive' });
+        //             }
+        //         }
+        //     );
+        // } else {
+            // Direct booking without payment (FREE or SKIPPED payment)
             setSubmitting(true);
             try {
                 await completeBooking();
@@ -478,31 +680,30 @@ export default function BookingPage() {
             } finally {
                 setSubmitting(false);
             }
-        }
+        // }
     };
 
-    // Filter therapists
-    const filteredTherapists = therapists.filter(therapist => {
-        const matchesSearch = searchQuery === '' ||
-            therapist.user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            therapist.specialties.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+    // Filter therapists using advanced filter
+    const filteredTherapists = applyTherapistFilters(therapists, therapistFilters, searchQuery);
 
-        const matchesSpecialty = !specialtyFilter ||
-            therapist.specialties.includes(specialtyFilter);
+    // Count active filters
+    const activeFilterCount = 
+        therapistFilters.specializations.length +
+        therapistFilters.languages.length +
+        therapistFilters.serviceTypes.length +
+        therapistFilters.counsellingModes.length +
+        therapistFilters.sessionTimes.length +
+        (therapistFilters.onlineOnly ? 1 : 0) +
+        (therapistFilters.nextAvailable ? 1 : 0);
 
-        return matchesSearch && matchesSpecialty;
-    });
-
-    // Get all unique specialties
-    const allSpecialties = [...new Set(therapists.flatMap(t => t.specialties))].sort();
-
-    // Check if can proceed to next step
+    // Check if can proceed to next step (updated for 6-step flow)
     const canProceed = (): boolean => {
         switch (currentStep) {
             case 1: return !!selectedService;
-            case 2: return !!selectedTherapist;
-            case 3: return !!selectedDate;
-            case 4: return !!selectedTime;
+            case 2: return questionnaireCompleted || !currentQuestionnaire;
+            case 3: return !!selectedTherapist;
+            case 4: return !!selectedDate;
+            case 5: return !!selectedTime;
             default: return false;
         }
     };
@@ -589,8 +790,48 @@ export default function BookingPage() {
                                 </div>
                             )}
 
-                            {/* Step 2: Select Therapist */}
-                            {currentStep === 2 && (
+                            {/* Step 2: Service Questionnaire */}
+                            {currentStep === 2 && currentQuestionnaire && (
+                                <ServiceQuestionnaire
+                                    questionnaire={currentQuestionnaire}
+                                    onComplete={handleQuestionnaireComplete}
+                                    onSkip={handleQuestionnaireSkip}
+                                    onBack={goBack}
+                                />
+                            )}
+
+                            {/* Step 2: Skip if no questionnaire or already completed */}
+                            {currentStep === 2 && (!currentQuestionnaire || questionnaireCompleted) && (
+                                <div className="max-w-2xl mx-auto text-center py-12">
+                                    <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
+                                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                                        {questionnaireCompleted ? 'Questionnaire Completed' : 'No Questionnaire Required'}
+                                    </h2>
+                                    <p className="text-gray-500 mb-8">
+                                        {questionnaireCompleted 
+                                            ? 'Thank you for completing the intake questionnaire. Let\'s proceed to select your therapist.'
+                                            : 'This service doesn\'t require an intake questionnaire. Let\'s proceed to select your therapist.'
+                                        }
+                                    </p>
+                                    <div className="flex justify-center gap-4">
+                                        <Button variant="outline" onClick={goBack} className="px-6">
+                                            <ChevronLeft className="w-4 h-4 mr-1" />
+                                            Back
+                                        </Button>
+                                        <Button onClick={goNext} className="btn-icy px-8">
+                                            Continue to Therapist Selection
+                                            <ChevronRight className="w-4 h-4 ml-1" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 3: Select Therapist */}
+                            {currentStep === 3 && (
                                 <div>
                                     <div className="text-center mb-8">
                                         <h2 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -616,46 +857,102 @@ export default function BookingPage() {
                                         <Button
                                             variant="outline"
                                             onClick={() => setFilterOpen(!filterOpen)}
-                                            className={`px-4 rounded-xl border-2 ${filterOpen || specialtyFilter ? 'border-cyan-500 text-cyan-600' : ''}`}
+                                            className={`px-4 rounded-xl border-2 ${filterOpen || activeFilterCount > 0 ? 'border-cyan-500 text-cyan-600' : ''}`}
                                         >
                                             <Filter className="w-4 h-4 mr-2" />
                                             Filter
-                                            {specialtyFilter && (
-                                                <span className="ml-2 w-2 h-2 bg-cyan-500 rounded-full" />
+                                            {activeFilterCount > 0 && (
+                                                <span className="ml-2 px-1.5 py-0.5 bg-cyan-500 text-white text-xs rounded-full">
+                                                    {activeFilterCount}
+                                                </span>
                                             )}
                                         </Button>
                                     </div>
 
-                                    {/* Filter Panel */}
+                                    {/* Advanced Filter Panel */}
                                     {filterOpen && (
-                                        <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-6 shadow-lg">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="font-medium text-gray-900">Filter by Specialty</span>
-                                                {specialtyFilter && (
+                                        <div className="mb-6">
+                                            <TherapistFilter
+                                                filters={therapistFilters}
+                                                onFiltersChange={setTherapistFilters}
+                                                onClose={() => setFilterOpen(false)}
+                                                selectedServiceId={selectedService}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Active Filters Display */}
+                                    {activeFilterCount > 0 && !filterOpen && (
+                                        <div className="flex flex-wrap items-center gap-2 mb-6">
+                                            <span className="text-sm text-gray-500">Active filters:</span>
+                                            {therapistFilters.specializations.map(spec => (
+                                                <span
+                                                    key={spec}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-100 text-cyan-700 text-xs rounded-full"
+                                                >
+                                                    {spec}
                                                     <button
-                                                        onClick={() => setSpecialtyFilter(null)}
-                                                        className="text-sm text-cyan-600 hover:underline"
+                                                        onClick={() => setTherapistFilters({
+                                                            ...therapistFilters,
+                                                            specializations: therapistFilters.specializations.filter(s => s !== spec)
+                                                        })}
+                                                        className="hover:text-cyan-900"
                                                     >
-                                                        Clear
+                                                        <X className="w-3 h-3" />
                                                     </button>
-                                                )}
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {allSpecialties.map(specialty => (
+                                                </span>
+                                            ))}
+                                            {therapistFilters.languages.map(lang => (
+                                                <span
+                                                    key={lang}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                                                >
+                                                    {lang}
                                                     <button
-                                                        key={specialty}
-                                                        onClick={() => setSpecialtyFilter(
-                                                            specialtyFilter === specialty ? null : specialty
-                                                        )}
-                                                        className={`px-3 py-1.5 text-sm rounded-lg transition-all ${specialtyFilter === specialty
-                                                            ? 'bg-cyan-500 text-white'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                            }`}
+                                                        onClick={() => setTherapistFilters({
+                                                            ...therapistFilters,
+                                                            languages: therapistFilters.languages.filter(l => l !== lang)
+                                                        })}
+                                                        className="hover:text-blue-900"
                                                     >
-                                                        {specialty}
+                                                        <X className="w-3 h-3" />
                                                     </button>
-                                                ))}
-                                            </div>
+                                                </span>
+                                            ))}
+                                            {therapistFilters.counsellingModes.map(mode => (
+                                                <span
+                                                    key={mode}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full"
+                                                >
+                                                    {mode}
+                                                    <button
+                                                        onClick={() => setTherapistFilters({
+                                                            ...therapistFilters,
+                                                            counsellingModes: therapistFilters.counsellingModes.filter(m => m !== mode)
+                                                        })}
+                                                        className="hover:text-purple-900"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                            {therapistFilters.onlineOnly && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                                    Online Only
+                                                    <button
+                                                        onClick={() => setTherapistFilters({ ...therapistFilters, onlineOnly: false })}
+                                                        className="hover:text-green-900"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </span>
+                                            )}
+                                            <button
+                                                onClick={() => setTherapistFilters(defaultFilters)}
+                                                className="text-xs text-gray-500 hover:text-cyan-600 underline"
+                                            >
+                                                Clear all
+                                            </button>
                                         </div>
                                     )}
 
@@ -672,7 +969,7 @@ export default function BookingPage() {
                                             <button
                                                 onClick={() => {
                                                     setSearchQuery('');
-                                                    setSpecialtyFilter(null);
+                                                    setTherapistFilters(defaultFilters);
                                                 }}
                                                 className="mt-4 text-cyan-600 hover:underline"
                                             >
@@ -711,8 +1008,8 @@ export default function BookingPage() {
                                 </div>
                             )}
 
-                            {/* Step 3: Select Date */}
-                            {currentStep === 3 && currentTherapist && (
+                            {/* Step 4: Select Date */}
+                            {currentStep === 4 && currentTherapist && (
                                 <div className="max-w-lg mx-auto">
                                     <div className="text-center mb-8">
                                         <h2 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -760,8 +1057,8 @@ export default function BookingPage() {
                                 </div>
                             )}
 
-                            {/* Step 4: Select Time */}
-                            {currentStep === 4 && currentTherapist && selectedDate && (
+                            {/* Step 5: Select Time */}
+                            {currentStep === 5 && currentTherapist && selectedDate && (
                                 <div className="max-w-lg mx-auto">
                                     <div className="text-center mb-8">
                                         <h2 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -802,8 +1099,8 @@ export default function BookingPage() {
                                 </div>
                             )}
 
-                            {/* Step 5: Confirm */}
-                            {currentStep === 5 && currentTherapist && currentService && selectedDate && selectedTime && (
+                            {/* Step 6: Confirm */}
+                            {currentStep === 6 && currentTherapist && currentService && selectedDate && selectedTime && (
                                 <div className="max-w-xl mx-auto">
                                     <BookingConfirmation
                                         therapist={currentTherapist}

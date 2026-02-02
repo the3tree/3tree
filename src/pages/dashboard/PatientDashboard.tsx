@@ -114,20 +114,31 @@ export default function PatientDashboard() {
     const handleCancelBooking = async (bookingId: string) => {
         setCancellingId(bookingId);
         try {
+            console.log('Attempting to cancel booking:', bookingId);
             const result = await cancelBooking(bookingId);
+            console.log('Cancel booking result:', result);
+
             if (result.success) {
                 toast({
                     title: 'Booking Cancelled',
-                    description: 'Your appointment has been cancelled successfully.'
+                    description: result.refundEligible
+                        ? 'Your appointment has been cancelled. Refund will be processed within 5-7 business days.'
+                        : 'Your appointment has been cancelled successfully.'
                 });
                 loadBookings(); // Reload bookings
             } else {
-                throw new Error(result.error || 'Failed to cancel booking');
+                console.error('Cancel booking failed:', result.error);
+                toast({
+                    title: 'Unable to Cancel',
+                    description: result.error || 'Failed to cancel booking. Please try again.',
+                    variant: 'destructive'
+                });
             }
         } catch (error) {
+            console.error('Cancel booking exception:', error);
             toast({
                 title: 'Error',
-                description: 'Failed to cancel booking. Please try again.',
+                description: error instanceof Error ? error.message : 'Failed to cancel booking. Please try again.',
                 variant: 'destructive'
             });
         } finally {
@@ -385,7 +396,7 @@ export default function PatientDashboard() {
                                                                     {formatBookingTime(booking.scheduled_at)}
                                                                 </div>
                                                             </div>
-                                                            <div className="flex gap-2">
+                                                            <div className="flex gap-2 flex-wrap">
                                                                 <Button
                                                                     size="sm"
                                                                     className="btn-icy text-xs px-4"
@@ -395,6 +406,15 @@ export default function PatientDashboard() {
                                                                         <Video className="w-4 h-4 mr-1" />
                                                                         Join
                                                                     </Link>
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                                                                    onClick={() => window.open('https://meet.google.com/new', '_blank')}
+                                                                >
+                                                                    <ExternalLink className="w-3 h-3 mr-1" />
+                                                                    Google Meet
                                                                 </Button>
                                                                 <Button
                                                                     size="sm"

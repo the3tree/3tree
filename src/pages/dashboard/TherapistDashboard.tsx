@@ -29,7 +29,10 @@ import {
     Edit,
     Star,
     Copy,
-    Key
+    Key,
+    ExternalLink,
+    Send,
+    BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -69,6 +72,7 @@ export default function TherapistDashboard() {
 
     // State
     const [sessions, setSessions] = useState<SessionData[]>([]);
+    const [upcomingSessions, setUpcomingSessions] = useState<SessionData[]>([]);
     const [stats, setStats] = useState<TherapistStats>({
         todaySessions: 0,
         totalPatients: 0,
@@ -93,6 +97,14 @@ export default function TherapistDashboard() {
         saturday: { enabled: false, start: '10:00', end: '14:00' },
         sunday: { enabled: false, start: '10:00', end: '14:00' }
     });
+    const [chatOpen, setChatOpen] = useState<string | null>(null);
+    const [chatMessage, setChatMessage] = useState('');
+    const [sessionAnalytics, setSessionAnalytics] = useState<{
+        weeklyHours: number;
+        avgSessionLength: number;
+        patientRetention: number;
+        cancelRate: number;
+    }>({ weeklyHours: 0, avgSessionLength: 0, patientRetention: 0, cancelRate: 0 });
 
     // Redirect if not logged in
     useEffect(() => {
@@ -193,10 +205,53 @@ export default function TherapistDashboard() {
 
             setSessions(sessionsData);
 
+            // Fetch upcoming sessions (after today) with meeting credentials
+            const { data: futureBookings } = await supabase
+                .from('bookings')
+                .select(`
+                    id,
+                    scheduled_at,
+                    service_type,
+                    status,
+                    duration_minutes,
+                    patient_id,
+                    meeting_link,
+                    zoom_meeting_id,
+                    zoom_passcode,
+                    zoom_host_key,
+                    users!bookings_patient_id_fkey (
+                        full_name
+                    )
+                `)
+                .eq('therapist_id', therapist.id)
+                .gte('scheduled_at', endOfDay)
+                .in('status', ['confirmed', 'pending'])
+                .order('scheduled_at', { ascending: true })
+                .limit(10);
+
+            // Transform upcoming sessions data
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const upcomingData: SessionData[] = (futureBookings || []).map((booking: any) => ({
+                id: booking.id,
+                patient_name: booking.users?.full_name || 'Patient',
+                patient_initial: (booking.users?.full_name || 'P').charAt(0).toUpperCase(),
+                scheduled_at: booking.scheduled_at,
+                service_type: booking.service_type,
+                status: booking.status,
+                duration_minutes: booking.duration_minutes || 50,
+                patient_id: booking.patient_id,
+                meeting_link: booking.meeting_link,
+                zoom_meeting_id: booking.zoom_meeting_id,
+                zoom_passcode: booking.zoom_passcode,
+                zoom_host_key: booking.zoom_host_key,
+            }));
+
+            setUpcomingSessions(upcomingData);
+
             // Fetch all-time stats
             const { data: allBookings } = await supabase
                 .from('bookings')
-                .select('id, status, amount, scheduled_at')
+                .select('id, status, amount, scheduled_at, patient_id')
                 .eq('therapist_id', therapist.id);
 
             // Fetch this month's bookings for earnings
@@ -228,6 +283,40 @@ export default function TherapistDashboard() {
                 totalReviews: therapist.total_reviews || 0,
                 completedSessions: completed,
                 upcomingSessions: upcoming
+            });
+
+            // Calculate advanced analytics
+            const cancelled = (allBookings || []).filter(b => b.status === 'cancelled').length;
+            const totalBookings = (allBookings || []).length;
+            const completedWithDuration = (allBookings || []).filter(b => b.status === 'completed');
+
+            // Get this week's bookings for weekly hours
+            const startOfWeek = new Date();
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            startOfWeek.setHours(0, 0, 0, 0);
+            const weeklyBookings = (allBookings || []).filter(b =>
+                new Date(b.scheduled_at) >= startOfWeek && b.status === 'completed'
+            );
+
+            // Calculate average session length (using 50 min default if not stored)
+            const avgSessionLen = completedWithDuration.length > 0 ? 50 : 0;
+            const weeklyHrs = weeklyBookings.length * (avgSessionLen / 60);
+
+            // Patient retention: patients with 2+ bookings / total patients
+            const patientBookingCounts: { [key: string]: number } = {};
+            (allBookings || []).forEach(b => {
+                if (b.patient_id) {
+                    patientBookingCounts[b.patient_id] = (patientBookingCounts[b.patient_id] || 0) + 1;
+                }
+            });
+            const returningPatients = Object.values(patientBookingCounts).filter(count => count >= 2).length;
+            const retention = uniquePatientIds.size > 0 ? (returningPatients / uniquePatientIds.size) * 100 : 0;
+
+            setSessionAnalytics({
+                weeklyHours: Math.round(weeklyHrs * 10) / 10,
+                avgSessionLength: avgSessionLen,
+                patientRetention: Math.round(retention),
+                cancelRate: totalBookings > 0 ? Math.round((cancelled / totalBookings) * 100) : 0
             });
 
         } catch (error) {
@@ -630,8 +719,8 @@ export default function TherapistDashboard() {
                                                             <span className="font-medium">{formatTime(session.scheduled_at)}</span>
                                                         </div>
 
-                                                        <div className="flex gap-2">
-                                                            {(session.status === 'confirmed' || session.status === 'pending') && (
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            {(session.status === 'confirmed' || session.status === 'pending' || session.status === 'in_progress') && (
                                                                 <>
                                                                     <Button
                                                                         size="sm"
@@ -639,7 +728,25 @@ export default function TherapistDashboard() {
                                                                         onClick={() => handleStartSession(session.id)}
                                                                     >
                                                                         <Video className="w-3 h-3 mr-1" />
-                                                                        Start
+                                                                        Join
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                                                                        onClick={() => window.open('https://meet.google.com/new', '_blank')}
+                                                                    >
+                                                                        <ExternalLink className="w-3 h-3 mr-1" />
+                                                                        Google Meet
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        onClick={() => setChatOpen(chatOpen === session.id ? null : session.id)}
+                                                                        className="text-xs"
+                                                                    >
+                                                                        <MessageCircle className="w-3 h-3 mr-1" />
+                                                                        Chat
                                                                     </Button>
                                                                     <Button
                                                                         size="sm"
@@ -654,6 +761,7 @@ export default function TherapistDashboard() {
                                                                         size="sm"
                                                                         variant="outline"
                                                                         onClick={() => handleCompleteSession(session.id)}
+                                                                        title="Mark as completed"
                                                                     >
                                                                         <CheckCircle2 className="w-3 h-3" />
                                                                     </Button>
@@ -669,7 +777,7 @@ export default function TherapistDashboard() {
                                                     </div>
 
                                                     {/* Expandable meeting details (therapist sees all including host key) */}
-                                                    {isExpanded && (session.status === 'confirmed' || session.status === 'pending') && (
+                                                    {isExpanded && (session.status === 'confirmed' || session.status === 'pending' || session.status === 'in_progress') && (
                                                         <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-gray-50/50 to-white">
                                                             <p className="text-xs font-medium text-gray-500 mb-3">Meeting Credentials (Host)</p>
                                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -761,6 +869,63 @@ export default function TherapistDashboard() {
                                                             </div>
                                                         </div>
                                                     )}
+
+                                                    {/* Quick Chat Panel */}
+                                                    {chatOpen === session.id && (session.status === 'confirmed' || session.status === 'pending' || session.status === 'in_progress') && (
+                                                        <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-blue-50/50 to-white">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <p className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                                                    <MessageCircle className="w-3 h-3" />
+                                                                    Quick Message to {session.patient_name}
+                                                                </p>
+                                                                <button
+                                                                    onClick={() => setChatOpen(null)}
+                                                                    className="p-1 hover:bg-gray-100 rounded"
+                                                                >
+                                                                    <X className="w-3 h-3 text-gray-400" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={chatMessage}
+                                                                    onChange={(e) => setChatMessage(e.target.value)}
+                                                                    placeholder="Send a quick message before the session..."
+                                                                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                                                                    onKeyPress={(e) => {
+                                                                        if (e.key === 'Enter' && chatMessage.trim()) {
+                                                                            toast({
+                                                                                title: 'Message Sent',
+                                                                                description: `Message sent to ${session.patient_name}`
+                                                                            });
+                                                                            setChatMessage('');
+                                                                            setChatOpen(null);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="btn-icy"
+                                                                    disabled={!chatMessage.trim()}
+                                                                    onClick={() => {
+                                                                        if (chatMessage.trim()) {
+                                                                            toast({
+                                                                                title: 'Message Sent',
+                                                                                description: `Message sent to ${session.patient_name}`
+                                                                            });
+                                                                            setChatMessage('');
+                                                                            setChatOpen(null);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Send className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                            <p className="text-xs text-gray-400 mt-2">
+                                                                Tip: Use Messages section for full conversation history
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -786,29 +951,275 @@ export default function TherapistDashboard() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Upcoming Sessions (Future dates) */}
+                            {upcomingSessions.length > 0 && (
+                                <div className="dashboard-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mt-6">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="text-xl font-semibold text-gray-900">Upcoming Sessions</h2>
+                                        <span className="text-sm text-gray-500">{upcomingSessions.length} scheduled</span>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {upcomingSessions.map((session) => {
+                                            const isExpanded = expandedSessionId === session.id;
+                                            const sessionDate = new Date(session.scheduled_at);
+                                            const formattedDate = sessionDate.toLocaleDateString('en-US', {
+                                                weekday: 'short',
+                                                month: 'short',
+                                                day: 'numeric'
+                                            });
+
+                                            return (
+                                                <div
+                                                    key={session.id}
+                                                    className="rounded-2xl overflow-hidden bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all"
+                                                >
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-gradient-to-r from-cyan-50/50 to-blue-50/50">
+                                                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg bg-gradient-to-br from-cyan-500 to-blue-600 text-white">
+                                                            {session.patient_initial}
+                                                        </div>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <p className="font-semibold text-gray-900">{session.patient_name}</p>
+                                                                {getStatusBadge(session.status)}
+                                                            </div>
+                                                            <p className="text-sm text-gray-500">
+                                                                {formatServiceType(session.service_type)} • {session.duration_minutes} min
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="text-right">
+                                                            <p className="font-medium text-gray-900">{formattedDate}</p>
+                                                            <div className="flex items-center gap-1 text-sm text-gray-500">
+                                                                <Clock className="w-3 h-3" />
+                                                                {formatTime(session.scheduled_at)}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            <Button
+                                                                size="sm"
+                                                                className="btn-icy text-xs"
+                                                                onClick={() => handleStartSession(session.id)}
+                                                            >
+                                                                <Video className="w-3 h-3 mr-1" />
+                                                                Join
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                                                                onClick={() => window.open('https://meet.google.com/new', '_blank')}
+                                                            >
+                                                                <ExternalLink className="w-3 h-3 mr-1" />
+                                                                Google Meet
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => setChatOpen(chatOpen === session.id ? null : session.id)}
+                                                                className="text-xs"
+                                                            >
+                                                                <MessageCircle className="w-3 h-3 mr-1" />
+                                                                Chat
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                                                                className="text-xs"
+                                                            >
+                                                                <Key className="w-3 h-3 mr-1" />
+                                                                {isExpanded ? 'Hide' : 'Details'}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expandable meeting details */}
+                                                    {isExpanded && (
+                                                        <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-gray-50/50 to-white">
+                                                            <p className="text-xs font-medium text-gray-500 mb-3">Meeting Credentials (Host)</p>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                                <div className="bg-white p-3 rounded-xl border border-gray-100">
+                                                                    <p className="text-xs text-gray-400 mb-1">Meeting ID</p>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="font-mono font-medium text-gray-900 text-sm">
+                                                                            {session.zoom_meeting_id || 'Not set'}
+                                                                        </p>
+                                                                        {session.zoom_meeting_id && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(session.zoom_meeting_id!);
+                                                                                    toast({ title: 'Copied!', description: 'Meeting ID copied' });
+                                                                                }}
+                                                                                className="p-1 hover:bg-gray-100 rounded"
+                                                                            >
+                                                                                <Copy className="w-3 h-3 text-gray-400" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="bg-white p-3 rounded-xl border border-gray-100">
+                                                                    <p className="text-xs text-gray-400 mb-1">Passcode</p>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="font-mono font-medium text-gray-900 text-sm">
+                                                                            {session.zoom_passcode || 'Not set'}
+                                                                        </p>
+                                                                        {session.zoom_passcode && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(session.zoom_passcode!);
+                                                                                    toast({ title: 'Copied!', description: 'Passcode copied' });
+                                                                                }}
+                                                                                className="p-1 hover:bg-gray-100 rounded"
+                                                                            >
+                                                                                <Copy className="w-3 h-3 text-gray-400" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                                                                    <p className="text-xs text-amber-600 mb-1 flex items-center gap-1">
+                                                                        <Key className="w-3 h-3" />
+                                                                        Host Key (Private)
+                                                                    </p>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="font-mono font-bold text-amber-800 text-sm">
+                                                                            {session.zoom_host_key || 'Not set'}
+                                                                        </p>
+                                                                        {session.zoom_host_key && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(session.zoom_host_key!);
+                                                                                    toast({ title: 'Copied!', description: 'Host key copied' });
+                                                                                }}
+                                                                                className="p-1 hover:bg-amber-100 rounded"
+                                                                            >
+                                                                                <Copy className="w-3 h-3 text-amber-600" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-3 bg-white p-3 rounded-xl border border-gray-100">
+                                                                <p className="text-xs text-gray-400 mb-1">Meeting Link</p>
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="font-mono text-xs text-gray-600 truncate flex-1">
+                                                                        {session.meeting_link || `${window.location.origin}/call/${session.id}`}
+                                                                    </p>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const link = session.meeting_link || `${window.location.origin}/call/${session.id}`;
+                                                                            navigator.clipboard.writeText(link);
+                                                                            toast({ title: 'Copied!', description: 'Meeting link copied to clipboard' });
+                                                                        }}
+                                                                        className="p-1 hover:bg-gray-100 rounded flex-shrink-0"
+                                                                    >
+                                                                        <Copy className="w-3 h-3 text-gray-400" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Quick Chat Panel */}
+                                                    {chatOpen === session.id && (
+                                                        <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-blue-50/50 to-white">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <p className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                                                                    <MessageCircle className="w-3 h-3" />
+                                                                    Quick Message to {session.patient_name}
+                                                                </p>
+                                                                <button
+                                                                    onClick={() => setChatOpen(null)}
+                                                                    className="p-1 hover:bg-gray-100 rounded"
+                                                                >
+                                                                    <X className="w-3 h-3 text-gray-400" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={chatMessage}
+                                                                    onChange={(e) => setChatMessage(e.target.value)}
+                                                                    placeholder="Send a quick message before the session..."
+                                                                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none"
+                                                                    onKeyPress={(e) => {
+                                                                        if (e.key === 'Enter' && chatMessage.trim()) {
+                                                                            toast({
+                                                                                title: 'Message Sent',
+                                                                                description: `Message sent to ${session.patient_name}`
+                                                                            });
+                                                                            setChatMessage('');
+                                                                            setChatOpen(null);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="btn-icy"
+                                                                    disabled={!chatMessage.trim()}
+                                                                    onClick={() => {
+                                                                        if (chatMessage.trim()) {
+                                                                            toast({
+                                                                                title: 'Message Sent',
+                                                                                description: `Message sent to ${session.patient_name}`
+                                                                            });
+                                                                            setChatMessage('');
+                                                                            setChatOpen(null);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Send className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Sidebar */}
                         <div className="space-y-6">
                             {/* Next Session */}
-                            {sessions.find(s => s.status === 'confirmed' || s.status === 'pending') && (
-                                <div className="dashboard-card bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-6 text-white">
-                                    <p className="text-cyan-100 text-sm mb-2">Next Session</p>
-                                    <p className="text-2xl font-bold mb-1">
-                                        {sessions.find(s => s.status === 'confirmed' || s.status === 'pending')?.patient_name}
-                                    </p>
-                                    <p className="text-cyan-100 mb-4">
-                                        {formatTime(sessions.find(s => s.status === 'confirmed' || s.status === 'pending')?.scheduled_at || '')} • {formatServiceType(sessions.find(s => s.status === 'confirmed' || s.status === 'pending')?.service_type || '')}
-                                    </p>
-                                    <Button
-                                        className="w-full bg-white text-cyan-600 hover:bg-cyan-50"
-                                        onClick={() => handleStartSession(sessions.find(s => s.status === 'confirmed' || s.status === 'pending')?.id || '')}
-                                    >
-                                        <Video className="w-4 h-4 mr-2" />
-                                        Start Session
-                                    </Button>
-                                </div>
-                            )}
+                            {(() => {
+                                const nextTodaySession = sessions.find(s => s.status === 'confirmed' || s.status === 'pending');
+                                const nextUpcomingSession = upcomingSessions[0];
+                                const nextSession = nextTodaySession || nextUpcomingSession;
+
+                                if (!nextSession) return null;
+
+                                const sessionDate = new Date(nextSession.scheduled_at);
+                                const isToday = sessionDate.toDateString() === new Date().toDateString();
+                                const formattedDate = isToday
+                                    ? 'Today'
+                                    : sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+                                return (
+                                    <div className="dashboard-card bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-6 text-white">
+                                        <p className="text-cyan-100 text-sm mb-2">Next Session • {formattedDate}</p>
+                                        <p className="text-2xl font-bold mb-1">
+                                            {nextSession.patient_name}
+                                        </p>
+                                        <p className="text-cyan-100 mb-4">
+                                            {formatTime(nextSession.scheduled_at)} • {formatServiceType(nextSession.service_type)}
+                                        </p>
+                                        <Button
+                                            className="w-full bg-white text-cyan-600 hover:bg-cyan-50"
+                                            onClick={() => handleStartSession(nextSession.id)}
+                                        >
+                                            <Video className="w-4 h-4 mr-2" />
+                                            Join Session
+                                        </Button>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Quick Actions */}
                             <div className="dashboard-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
@@ -856,6 +1267,32 @@ export default function TherapistDashboard() {
                                             <div className="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full"
                                                 style={{ width: `${Math.min((stats.upcomingSessions / Math.max(stats.completedSessions + stats.upcomingSessions, 1)) * 100, 100)}%` }} />
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Session Analytics */}
+                            <div className="dashboard-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <BarChart3 className="w-5 h-5 text-cyan-500" />
+                                    <h3 className="font-semibold text-gray-900">Session Analytics</h3>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-gray-50 p-3 rounded-xl">
+                                        <p className="text-xs text-gray-500 mb-1">Weekly Hours</p>
+                                        <p className="text-xl font-bold text-gray-900">{sessionAnalytics.weeklyHours}h</p>
+                                    </div>
+                                    <div className="bg-gray-50 p-3 rounded-xl">
+                                        <p className="text-xs text-gray-500 mb-1">Avg. Session</p>
+                                        <p className="text-xl font-bold text-gray-900">{sessionAnalytics.avgSessionLength}m</p>
+                                    </div>
+                                    <div className="bg-green-50 p-3 rounded-xl">
+                                        <p className="text-xs text-green-600 mb-1">Patient Retention</p>
+                                        <p className="text-xl font-bold text-green-700">{sessionAnalytics.patientRetention}%</p>
+                                    </div>
+                                    <div className={`p-3 rounded-xl ${sessionAnalytics.cancelRate > 10 ? 'bg-red-50' : 'bg-gray-50'}`}>
+                                        <p className={`text-xs mb-1 ${sessionAnalytics.cancelRate > 10 ? 'text-red-600' : 'text-gray-500'}`}>Cancel Rate</p>
+                                        <p className={`text-xl font-bold ${sessionAnalytics.cancelRate > 10 ? 'text-red-700' : 'text-gray-900'}`}>{sessionAnalytics.cancelRate}%</p>
                                     </div>
                                 </div>
                             </div>

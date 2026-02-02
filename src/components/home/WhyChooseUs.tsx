@@ -12,7 +12,7 @@ import {
   HeartHandshake,
   CheckCircle2
 } from "lucide-react";
-import LottieAnimation from "@/components/ui/LottieAnimation";
+import DotLottieAnimation from "@/components/ui/DotLottieAnimation";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -175,12 +175,12 @@ export default function WhyChooseUs() {
           <div className="why-image relative order-2 lg:order-1">
             {/* Main Animation Container - Clean background */}
             <div className="relative rounded-3xl overflow-hidden">
-              <LottieAnimation
-                src="https://assets2.lottiefiles.com/packages/lf20_touohxv0.json"
-                className="w-full h-auto min-h-[280px] lg:min-h-[380px]"
+              <DotLottieAnimation
+                src="/animations/yoga-black.lottie"
+                className="w-full h-full"
                 loop={true}
                 autoplay={true}
-                speed={0.7}
+                speed={1}
               />
             </div>
 

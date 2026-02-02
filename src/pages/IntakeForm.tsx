@@ -4,7 +4,7 @@
 
 import { Helmet } from 'react-helmet-async';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { gsap } from 'gsap';
 import {
     ChevronRight,
@@ -329,6 +329,9 @@ export default function IntakeForm() {
         }
     };
 
+    const [searchParams] = useSearchParams();
+    const redirectUrl = searchParams.get('redirect');
+
     const handleSubmit = async () => {
         if (!validateCurrentSection() || !form || !user) return;
 
@@ -346,6 +349,13 @@ export default function IntakeForm() {
                 title: 'Form Submitted',
                 description: 'Thank you for completing the intake form.',
             });
+
+            // Redirect if specialized
+            if (redirectUrl) {
+                setTimeout(() => {
+                    navigate(redirectUrl);
+                }, 2000);
+            }
         } catch (error) {
             toast({
                 title: 'Submission Failed',

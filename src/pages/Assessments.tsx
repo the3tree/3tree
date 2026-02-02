@@ -4,6 +4,15 @@ import { Button } from "@/components/ui/button";
 import { ChevronRight, Plus, ClipboardList } from "lucide-react";
 import { useState } from "react";
 
+// Assessment images
+import depressionImg from "@/assets/generate-images-about-_Could-I-Be-Experiencing-Depression__-Text_-keep-the-color-theme-as-navy-blue-ice-blue-white-and-beige-you-can-use-a-human-in-sketch-paint.webp";
+import anxietyImg from "@/assets/generate-images-about-_Is-Anxiety-Affecting-My-Daily-Life__-Text_-keep-the-color-theme-as-navy-blue-ice-blue-white-and-beige-you-can-use-a-human-in-sketch-paint.webp";
+import stressImg from "@/assets/generate-images-about-_How-Stressed-Am-I-Really___-Text_-keep-the-color-theme-as-navy-blue-ice-blue-white-and-beige-you-can-use-a-human-in-sketch-paint.webp";
+import ptsdImg from "@/assets/generate-images-about-_Am-I-Still-Affected-by-Past-Trauma___-Text_-keep-the-color-theme-as-navy-blue-ice-blue-white-and-beige-you-can-use-a-human-in-sketch-paint.webp";
+import dastImg from "@/assets/generate-images-about-_medicine__-Text_-keep-the-color-theme-as-navy-blue-ice-blue-white-and-beige-you-can-use-a-human-in-sketch-paint.webp";
+import eatingImg from "@/assets/generate-images-about-_Are-My-Eating-Habits-Affecting-My-Health____-Text_-keep-the-color-theme-as-navy-blue-ice-blue-white-and-beige-you-can-use-a-human-in-sketch-paint.webp";
+import personalityImg from "@/assets/generate-images-about-_What-Are-My-Core-Personality-Traits_____-Text_-keep-the-color-theme-as-navy-blue-ice-blue-white-and-beige-you-can-use-a-human-in-sketch-paint.webp";
+
 const assessments = [
   {
     id: "phq9",
@@ -11,6 +20,7 @@ const assessments = [
     title: "PHQ-9 (Depression)",
     description: "Persistent sadness or loss of interest might be more than just a phase—this test offers insight.",
     link: "/phq-9-questionnaire",
+    image: depressionImg,
   },
   {
     id: "gad7",
@@ -18,6 +28,7 @@ const assessments = [
     title: "GAD-7 (Anxiety)",
     description: "Unchecked worry can silently disrupt routines—see how much it's impacting you.",
     link: "/gad-7-questionnaire",
+    image: anxietyImg,
   },
   {
     id: "pss",
@@ -25,6 +36,7 @@ const assessments = [
     title: "PSS (Stress)",
     description: "Life feels overwhelming sometimes—this test helps you understand your current stress levels.",
     link: "/pss-questionnaire",
+    image: stressImg,
   },
   {
     id: "ptsd",
@@ -32,6 +44,7 @@ const assessments = [
     title: "PC-PTSD-5 (PTSD)",
     description: "If old memories feel too vivid or disturbing, this self-assessment may offer clarity.",
     link: "/ptsd-questionnaire",
+    image: ptsdImg,
   },
   {
     id: "dast",
@@ -39,6 +52,7 @@ const assessments = [
     title: "DAST-10 (Drug use)",
     description: "Understand whether your habits are within safe limits or need professional attention.",
     link: "/dast-questionnaire",
+    image: dastImg,
   },
   {
     id: "scoff",
@@ -46,6 +60,7 @@ const assessments = [
     title: "SCOFF (Eating Disorders)",
     description: "A short check-in that can flag potential signs of an unhealthy relationship with food.",
     link: "/scoff-questionnaire",
+    image: eatingImg,
   },
   {
     id: "bfi",
@@ -53,6 +68,7 @@ const assessments = [
     title: "BFI-10 (Personality)",
     description: "Discover your unique personality profile across five major dimensions.",
     link: "/bfi-questionnaire",
+    image: personalityImg,
   },
 ];
 
@@ -127,8 +143,14 @@ export default function Assessments() {
                   className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all overflow-hidden border border-gray-200"
                 >
                   <div className="flex gap-4 p-6">
-                    {/* Watercolor Image Placeholder */}
-                    <div className="flex-shrink-0 w-32 h-40 bg-gradient-to-br from-blue-200 via-indigo-100 to-purple-100 rounded-lg" />
+                    {/* Assessment Image */}
+                    <div className="flex-shrink-0 w-32 h-40 rounded-lg overflow-hidden">
+                      <img 
+                        src={assessment.image} 
+                        alt={assessment.question}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     
                     {/* Content */}
                     <div className="flex-1 flex flex-col">

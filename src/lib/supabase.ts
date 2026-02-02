@@ -207,6 +207,7 @@ export interface Message {
   id: string;
   conversation_id: string;
   sender_id: string;
+  receiver_id?: string | null;
   content?: string | null;
   file_url?: string | null;
   file_type?: string | null;

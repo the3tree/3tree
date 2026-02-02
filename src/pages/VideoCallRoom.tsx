@@ -1,48 +1,102 @@
 import { Helmet } from "react-helmet-async";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { JitsiMeeting } from "@jitsi/react-sdk";
 import {
-    Mic, MicOff, Video, VideoOff, Phone, MessageCircle,
-    Settings, Monitor, MonitorOff, Loader2, AlertCircle,
-    PhoneOff, RotateCcw, Volume2, VolumeX, ExternalLink, Send
+    Loader2, AlertCircle, RotateCcw,
+    Shield, CheckCircle2, FileText, X, Save,
+    ChevronDown, Lock, Clock, User, Video
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { WebRTCService, createVideoSession } from "@/lib/services/webrtcService";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
-type ConnectionState = 'initializing' | 'connecting' | 'connected' | 'disconnected' | 'failed' | 'ended';
+type ConnectionState = 'initializing' | 'loading' | 'ready' | 'connected' | 'failed' | 'ended';
+
+interface SOAPNote {
+    subjective: string;
+    objective: string;
+    assessment: string;
+    plan: string;
+}
+
+interface SessionInfo {
+    id: string;
+    booking_id?: string;
+    therapist_name?: string;
+    patient_name?: string;
+    scheduled_at?: string;
+    service_type?: string;
+    duration_minutes?: number;
+    is_therapist: boolean;
+    notes_therapist?: string;
+}
+
+const DEFAULT_SOAP: SOAPNote = {
+    subjective: '',
+    objective: '',
+    assessment: '',
+    plan: ''
+};
+
+const SOAP_SECTIONS = [
+    { key: 'subjective', label: 'S - Subjective', placeholder: "Patient's reported symptoms, concerns, history...", color: 'border-l-blue-400' },
+    { key: 'objective', label: 'O - Objective', placeholder: 'Observable findings, mental status, behavior...', color: 'border-l-green-400' },
+    { key: 'assessment', label: 'A - Assessment', placeholder: 'Clinical impression, diagnosis, progress...', color: 'border-l-amber-400' },
+    { key: 'plan', label: 'P - Plan', placeholder: 'Treatment plan, interventions, follow-up...', color: 'border-l-purple-400' },
+];
 
 export default function VideoCallRoom() {
     const { roomId } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, profile } = useAuth();
+    const { toast } = useToast();
+    const jitsiApiRef = useRef<any>(null);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const hasJoinedRef = useRef(false);
+    const roomNameRef = useRef<string | null>(null);
 
-    // Refs
-    const localVideoRef = useRef<HTMLVideoElement>(null);
-    const remoteVideoRef = useRef<HTMLVideoElement>(null);
-    const webrtcRef = useRef<WebRTCService | null>(null);
-    const chatContainerRef = useRef<HTMLDivElement>(null);
-
-    // State
+    // Core State
     const [connectionState, setConnectionState] = useState<ConnectionState>('initializing');
-    const [isMuted, setIsMuted] = useState(false);
-    const [isVideoOff, setIsVideoOff] = useState(false);
-    const [isScreenSharing, setIsScreenSharing] = useState(false);
-    const [isSpeakerMuted, setIsSpeakerMuted] = useState(false);
-    const [callDuration, setCallDuration] = useState(0);
-    const [showChat, setShowChat] = useState(false);
-    const [chatMessages, setChatMessages] = useState<{ sender: string; content: string; time: string }[]>([]);
-    const [newChatMessage, setNewChatMessage] = useState("");
     const [error, setError] = useState<string | null>(null);
-    const [otherUser, setOtherUser] = useState<{ name: string; avatar?: string } | null>(null);
-    const [isInitiator, setIsInitiator] = useState(false);
-    const [connectionQuality, setConnectionQuality] = useState<string>('unknown');
-    const [googleMeetLink, setGoogleMeetLink] = useState<string | null>(null);
-    const [showGoogleMeetModal, setShowGoogleMeetModal] = useState(false);
+    const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
+    const [callDuration, setCallDuration] = useState(0);
+    const [permissionsGranted, setPermissionsGranted] = useState(false);
+
+    // Notes Panel State
+    const [showNotes, setShowNotes] = useState(false);
+    const [notesMode, setNotesMode] = useState<'soap' | 'simple'>('soap');
+    const [soapNotes, setSoapNotes] = useState<SOAPNote>(DEFAULT_SOAP);
+    const [simpleNotes, setSimpleNotes] = useState('');
+    const [expandedSection, setExpandedSection] = useState<string>('subjective');
+    const [saving, setSaving] = useState(false);
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
     const mode = searchParams.get('mode') || 'video';
+
+    // Check and request media permissions
+    useEffect(() => {
+        const checkPermissions = async () => {
+            try {
+                // Request media permissions early
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: mode !== 'audio',
+                    audio: true
+                });
+                // Stop the tracks immediately after getting permission
+                stream.getTracks().forEach(track => track.stop());
+                setPermissionsGranted(true);
+            } catch (err) {
+                console.warn('Media permission check:', err);
+                // Don't block - Jitsi will handle permissions too
+                setPermissionsGranted(true);
+            }
+        };
+        
+        checkPermissions();
+    }, [mode]);
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -51,98 +105,92 @@ export default function VideoCallRoom() {
         }
     }, [user, authLoading, navigate]);
 
-    // Initialize WebRTC
+    // Load session info and notes
     useEffect(() => {
         if (!roomId || !user) return;
 
-        const initializeCall = async () => {
+        const loadSession = async () => {
             try {
                 setConnectionState('initializing');
 
-                // Check if session exists
-                const { data: session } = await supabase
-                    .from('video_call_sessions')
-                    .select('*, initiator:users!video_call_sessions_initiator_id_fkey(full_name, avatar_url), receiver:users!video_call_sessions_receiver_id_fkey(full_name, avatar_url)')
-                    .eq('room_id', roomId)
+                // Get booking by video_room_id
+                const { data: booking, error: bookingError } = await supabase
+                    .from('bookings')
+                    .select(`
+                        id,
+                        scheduled_date,
+                        scheduled_time,
+                        service_type,
+                        duration_minutes,
+                        notes_therapist,
+                        status,
+                        user_id,
+                        therapist_id,
+                        patient:users!bookings_user_id_fkey(id, full_name),
+                        therapist:therapists!bookings_therapist_id_fkey(
+                            id,
+                            user:users!therapists_user_id_fkey(id, full_name)
+                        )
+                    `)
+                    .eq('video_room_id', roomId)
                     .single();
 
-                if (session) {
-                    const initiator = session.initiator_id === user.id;
-                    setIsInitiator(initiator);
-                    setOtherUser(initiator ? {
-                        name: session.receiver?.full_name || 'Participant',
-                        avatar: session.receiver?.avatar_url
-                    } : {
-                        name: session.initiator?.full_name || 'Participant',
-                        avatar: session.initiator?.avatar_url
+                if (booking) {
+                    const therapistUserId = booking.therapist?.user?.id;
+                    const isTherapist = therapistUserId === user.id;
+
+                    setSessionInfo({
+                        id: roomId,
+                        booking_id: booking.id,
+                        therapist_name: booking.therapist?.user?.full_name || 'Therapist',
+                        patient_name: booking.patient?.full_name || 'Patient',
+                        scheduled_at: `${booking.scheduled_date} ${booking.scheduled_time}`,
+                        service_type: booking.service_type || 'individual',
+                        duration_minutes: booking.duration_minutes || 50,
+                        is_therapist: isTherapist,
+                        notes_therapist: booking.notes_therapist
+                    });
+
+                    // Load existing notes if therapist
+                    if (isTherapist && booking.notes_therapist) {
+                        try {
+                            const parsed = JSON.parse(booking.notes_therapist);
+                            if (parsed.subjective !== undefined) {
+                                setSoapNotes(parsed);
+                                setNotesMode('soap');
+                            } else {
+                                setSimpleNotes(booking.notes_therapist);
+                                setNotesMode('simple');
+                            }
+                        } catch {
+                            setSimpleNotes(booking.notes_therapist);
+                            setNotesMode('simple');
+                        }
+                    }
+                } else {
+                    // Fallback: Generic session without booking
+                    console.warn('No booking found for room:', roomId, bookingError);
+                    setSessionInfo({
+                        id: roomId,
+                        is_therapist: profile?.role === 'therapist'
                     });
                 }
 
-                // Create WebRTC service
-                webrtcRef.current = new WebRTCService();
-
-                // Initialize with config
-                await webrtcRef.current.initialize({
-                    roomId,
-                    userId: user.id,
-                    isInitiator: session?.initiator_id === user.id || !session,
-                    onLocalStream: (stream) => {
-                        if (localVideoRef.current) {
-                            localVideoRef.current.srcObject = stream;
-                        }
-                    },
-                    onRemoteStream: (stream) => {
-                        if (remoteVideoRef.current) {
-                            remoteVideoRef.current.srcObject = stream;
-                        }
-                        setConnectionState('connected');
-                    },
-                    onConnectionState: (state) => {
-                        console.log('Connection state:', state);
-                        if (state === 'connected') {
-                            setConnectionState('connected');
-                        } else if (state === 'disconnected' || state === 'failed') {
-                            setConnectionState(state);
-                        }
-                    },
-                    onError: (err) => {
-                        console.error('WebRTC error:', err);
-                        setError(err.message);
-                        setConnectionState('failed');
-                    }
-                });
-
-                // If video-only mode requested, disable video initially
-                if (mode === 'audio') {
-                    setIsVideoOff(true);
-                    webrtcRef.current.toggleVideo(false);
-                }
-
-                setConnectionState('connecting');
-
-                // Start the call if initiator
-                if (session?.initiator_id === user.id || !session) {
-                    await webrtcRef.current.startCall();
-                }
-
+                setConnectionState('loading');
             } catch (err) {
-                console.error('Failed to initialize call:', err);
-                setError(err instanceof Error ? err.message : 'Failed to start call');
-                setConnectionState('failed');
+                console.error('Failed to load session:', err);
+                setSessionInfo({
+                    id: roomId,
+                    is_therapist: profile?.role === 'therapist'
+                });
+                setConnectionState('loading');
             }
         };
 
-        initializeCall();
+        loadSession();
+    }, [roomId, user, profile]);
 
-        // Cleanup
-        return () => {
-            if (webrtcRef.current) {
-                webrtcRef.current.endCall();
-            }
-        };
-    }, [roomId, user, mode]);
-
-    // Call timer
+    // Call duration timer
     useEffect(() => {
         if (connectionState !== 'connected') return;
 
@@ -152,6 +200,25 @@ export default function VideoCallRoom() {
 
         return () => clearInterval(timer);
     }, [connectionState]);
+
+    // Auto-save notes (debounced)
+    useEffect(() => {
+        if (!sessionInfo?.booking_id || !sessionInfo.is_therapist) return;
+
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+
+        saveTimeoutRef.current = setTimeout(() => {
+            saveNotes(true);
+        }, 3000); // Auto-save after 3 seconds of inactivity
+
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [soapNotes, simpleNotes, notesMode]);
 
     const formatDuration = (seconds: number) => {
         const hrs = Math.floor(seconds / 3600);
@@ -164,156 +231,205 @@ export default function VideoCallRoom() {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const toggleMute = useCallback(() => {
-        if (webrtcRef.current) {
-            webrtcRef.current.toggleAudio(isMuted);
-            setIsMuted(!isMuted);
-        }
-    }, [isMuted]);
-
-    const toggleVideo = useCallback(() => {
-        if (webrtcRef.current) {
-            webrtcRef.current.toggleVideo(isVideoOff);
-            setIsVideoOff(!isVideoOff);
-        }
-    }, [isVideoOff]);
-
-    const toggleScreenShare = useCallback(async () => {
-        if (webrtcRef.current) {
-            if (isScreenSharing) {
-                await webrtcRef.current.stopScreenShare();
-                setIsScreenSharing(false);
-            } else {
-                const success = await webrtcRef.current.startScreenShare();
-                setIsScreenSharing(success);
-            }
-        }
-    }, [isScreenSharing]);
-
-    const toggleSpeaker = useCallback(() => {
-        if (remoteVideoRef.current) {
-            remoteVideoRef.current.muted = !isSpeakerMuted;
-            setIsSpeakerMuted(!isSpeakerMuted);
-        }
-    }, [isSpeakerMuted]);
-
-    // Start quality monitoring when connected
-    useEffect(() => {
-        if (connectionState === 'connected' && webrtcRef.current) {
-            webrtcRef.current.startQualityMonitoring(setConnectionQuality);
-        }
-        return () => {
-            if (webrtcRef.current) {
-                webrtcRef.current.stopQualityMonitoring();
-            }
-        };
-    }, [connectionState]);
-
-    const endCall = useCallback(async () => {
-        if (webrtcRef.current) {
-            await webrtcRef.current.endCall();
-        }
-        setConnectionState('ended');
-        navigate("/dashboard");
-    }, [navigate]);
-
-    const retryConnection = useCallback(async () => {
-        if (!roomId || !user || !webrtcRef.current) return;
-
-        setConnectionState('connecting');
-        setError(null);
+    // Save notes to database
+    const saveNotes = async (isAutoSave = false) => {
+        if (!sessionInfo?.booking_id) return;
 
         try {
-            await webrtcRef.current.startCall();
+            setSaving(true);
+            const notesContent = notesMode === 'soap'
+                ? JSON.stringify(soapNotes)
+                : simpleNotes;
+
+            const { error } = await supabase
+                .from('bookings')
+                .update({ notes_therapist: notesContent })
+                .eq('id', sessionInfo.booking_id);
+
+            if (error) throw error;
+
+            setLastSaved(new Date());
+
+            if (!isAutoSave) {
+                toast({
+                    title: '✓ Notes Saved',
+                    description: 'Session notes have been saved securely.'
+                });
+            }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to reconnect');
-            setConnectionState('failed');
+            console.error('Error saving notes:', err);
+            if (!isAutoSave) {
+                toast({
+                    title: 'Error',
+                    description: 'Failed to save notes. Please try again.',
+                    variant: 'destructive'
+                });
+            }
+        } finally {
+            setSaving(false);
         }
-    }, [roomId, user]);
+    };
 
-    // Generate Google Meet link as fallback
-    const generateGoogleMeetLink = useCallback(() => {
-        // Generate a Google Meet link - users can create their own meeting
-        const meetLink = 'https://meet.google.com/new';
-        setGoogleMeetLink(meetLink);
-        setShowGoogleMeetModal(true);
-    }, []);
+    // Mark session as completed
+    const markSessionCompleted = async () => {
+        if (!sessionInfo?.booking_id) return;
 
-    // Open Google Meet in new tab
-    const openGoogleMeet = useCallback(() => {
-        window.open(googleMeetLink || 'https://meet.google.com/new', '_blank');
-    }, [googleMeetLink]);
-
-    // Setup Realtime chat channel
-    useEffect(() => {
-        if (!roomId || !user) return;
-
-        const channel = supabase.channel(`chat-${roomId}`)
-            .on('broadcast', { event: 'chat-message' }, (payload) => {
-                const msg = payload.payload;
-                if (msg.sender_id !== user.id) {
-                    setChatMessages(prev => [...prev, {
-                        sender: 'them',
-                        content: msg.content,
-                        time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    }]);
-                    // Auto-scroll to bottom
-                    if (chatContainerRef.current) {
-                        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-                    }
-                }
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [roomId, user]);
-
-    const handleSendChatMessage = useCallback(async () => {
-        if (!newChatMessage.trim() || !roomId || !user) return;
-
-        const message = {
-            sender_id: user.id,
-            sender_name: user.full_name || 'You',
-            content: newChatMessage.trim(),
-            timestamp: new Date().toISOString()
-        };
-
-        // Add to local messages immediately
-        setChatMessages(prev => [...prev, {
-            sender: 'me',
-            content: newChatMessage,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }]);
-        setNewChatMessage("");
-
-        // Broadcast to other participant via Supabase Realtime
         try {
-            await supabase.channel(`chat-${roomId}`).send({
-                type: 'broadcast',
-                event: 'chat-message',
-                payload: message
+            await supabase
+                .from('bookings')
+                .update({
+                    status: 'completed',
+                    completed_at: new Date().toISOString()
+                })
+                .eq('id', sessionInfo.booking_id);
+
+            toast({
+                title: 'Session Completed',
+                description: 'The session has been marked as completed.'
             });
         } catch (err) {
-            console.error('Failed to send chat message:', err);
+            console.error('Error completing session:', err);
         }
+    };
 
-        // Auto-scroll to bottom
-        if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    // Jitsi API ready handler
+    const handleReadyToClose = useCallback(() => {
+        // Only navigate if user actually joined and left intentionally
+        if (hasJoinedRef.current) {
+            console.log('User left conference intentionally');
+            navigate('/dashboard');
+        } else {
+            // Don't auto-navigate - let user retry or go back manually
+            console.log('Conference closed before joining - not auto-redirecting');
         }
-    }, [newChatMessage, roomId, user]);
+    }, [navigate]);
 
-    // Error/Loading states
-    if (authLoading) {
+    const handleApiReady = useCallback((api: any) => {
+        jitsiApiRef.current = api;
+        setConnectionState('ready');
+
+        // Listen for successful join
+        api.addListener('videoConferenceJoined', () => {
+            console.log('Successfully joined conference');
+            hasJoinedRef.current = true;
+            setConnectionState('connected');
+            setError(null);
+        });
+
+        // Handle connection errors
+        api.addListener('errorOccurred', (event: any) => {
+            console.error('Jitsi error:', event);
+            
+            // Handle specific error types
+            const errorName = event.error?.name || '';
+            
+            // Members-only error - room requires auth (don't auto-reload, causes loops)
+            if (errorName === 'conference.connectionError.membersOnly') {
+                console.warn('Room is members-only, but continuing anyway');
+                // Don't reload - it causes infinite loops
+                return;
+            }
+            
+            // Ignore harmless auth prompts and non-fatal errors
+            if (errorName === 'conference.authenticationRequired' ||
+                errorName.includes('password') ||
+                !event.error?.isFatal) {
+                return;
+            }
+            
+            // Only handle truly fatal errors that prevent joining
+            if (event.error?.isFatal && !hasJoinedRef.current) {
+                console.error('Fatal Jitsi error:', errorName);
+                setError(`Connection error. Please try again.`);
+                setConnectionState('failed');
+            }
+        });
+
+        // Only handle leave if user actually joined
+        api.addListener('videoConferenceLeft', async () => {
+            console.log('videoConferenceLeft fired, hasJoined:', hasJoinedRef.current);
+            
+            // Only process if user actually joined the conference
+            if (!hasJoinedRef.current) {
+                console.log('Ignoring videoConferenceLeft - user never joined');
+                return;
+            }
+            
+            if (connectionState === 'ended') return;
+            
+            setConnectionState('ended');
+            // Save notes before leaving
+            if (sessionInfo?.is_therapist && sessionInfo?.booking_id) {
+                await saveNotes();
+                await markSessionCompleted();
+            }
+            navigate('/dashboard');
+        });
+
+        // Only use readyToClose for cleanup, not navigation
+        api.addListener('readyToClose', () => {
+            console.log('readyToClose fired, hasJoined:', hasJoinedRef.current);
+            // Only navigate if user had joined
+            if (hasJoinedRef.current) {
+                handleReadyToClose();
+            }
+        });
+
+        // Handle participant joined (useful for debugging)
+        api.addListener('participantJoined', (participant: any) => {
+            console.log('Participant joined:', participant);
+        });
+
+        if (mode === 'audio') {
+            api.executeCommand('toggleVideo');
+        }
+    }, [mode, navigate, sessionInfo, handleReadyToClose, connectionState]);
+
+    // Get display name
+    const getDisplayName = () => {
+        if (profile?.full_name) return profile.full_name;
+        if (user?.email) return user.email.split('@')[0];
+        return 'Participant';
+    };
+
+    // Generate safe room name - stable for both parties to join same room
+    const getSafeRoomName = useCallback(() => {
+        // Return cached room name if already generated
+        if (roomNameRef.current) return roomNameRef.current;
+        
+        if (!roomId) {
+            roomNameRef.current = `the3tree-session-${Date.now()}`;
+        } else {
+            // Use sanitized roomId - must be same for both parties
+            const sanitized = roomId.replace(/[^a-zA-Z0-9]/g, '');
+            roomNameRef.current = `the3treecounseling${sanitized}`;
+        }
+        console.log('Generated room name:', roomNameRef.current);
+        return roomNameRef.current;
+    }, [roomId]);
+
+    // Retry connection
+    const retryConnection = useCallback(() => {
+        setError(null);
+        setConnectionState('loading');
+        hasJoinedRef.current = false;
+    }, []);
+
+    // Loading state
+    if (authLoading || connectionState === 'initializing' || !permissionsGranted) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-white" />
+                <div className="text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-gray-400">
+                        {!permissionsGranted ? 'Checking media permissions...' : 'Preparing your session...'}
+                    </p>
+                </div>
             </div>
         );
     }
 
+    // Error state
     if (connectionState === 'failed' || error) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -322,9 +438,22 @@ export default function VideoCallRoom() {
                         <AlertCircle className="w-8 h-8 text-red-500" />
                     </div>
                     <h2 className="text-xl font-semibold text-white mb-2">Connection Failed</h2>
-                    <p className="text-gray-400 mb-6">{error || 'Unable to establish connection. Please check your camera and microphone permissions.'}</p>
+                    <p className="text-gray-400 mb-6">
+                        {error || 'Unable to start video session. Please check your camera and microphone permissions.'}
+                    </p>
 
                     <div className="flex flex-col gap-3">
+                        {/* Troubleshooting tips */}
+                        <div className="text-left bg-gray-800 rounded-lg p-4 mb-2">
+                            <p className="text-sm text-gray-300 font-medium mb-2">Quick fixes:</p>
+                            <ul className="text-xs text-gray-400 space-y-1">
+                                <li>• Allow camera & microphone access in your browser</li>
+                                <li>• Check your internet connection</li>
+                                <li>• Try refreshing the page</li>
+                                <li>• Use Chrome or Firefox for best experience</li>
+                            </ul>
+                        </div>
+
                         <div className="flex gap-3 justify-center">
                             <Button onClick={retryConnection} className="bg-primary hover:bg-primary/90">
                                 <RotateCcw className="w-4 h-4 mr-2" />
@@ -332,18 +461,6 @@ export default function VideoCallRoom() {
                             </Button>
                             <Button variant="outline" onClick={() => navigate('/dashboard')} className="text-white border-gray-600">
                                 Back to Dashboard
-                            </Button>
-                        </div>
-
-                        {/* Google Meet Fallback */}
-                        <div className="border-t border-gray-700 pt-4 mt-2">
-                            <p className="text-sm text-gray-500 mb-3">Or continue your session on Google Meet:</p>
-                            <Button
-                                onClick={() => window.open('https://meet.google.com/new', '_blank')}
-                                className="bg-green-600 hover:bg-green-700 text-white w-full"
-                            >
-                                <ExternalLink className="w-4 h-4 mr-2" />
-                                Open Google Meet
                             </Button>
                         </div>
                     </div>
@@ -357,333 +474,352 @@ export default function VideoCallRoom() {
             <Helmet>
                 <title>Video Session | The 3 Tree Counseling</title>
             </Helmet>
-            <div className="min-h-screen bg-gray-900 flex">
-                {/* Main Video Area */}
-                <div className={`flex-1 flex flex-col ${showChat ? 'lg:mr-80' : ''} transition-all`}>
-                    {/* Header */}
-                    <header className="bg-gray-800/50 backdrop-blur-sm p-4 flex items-center justify-between z-10">
-                        <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${connectionState === 'connected' ? 'bg-green-500' :
-                                connectionState === 'connecting' ? 'bg-yellow-500' : 'bg-gray-600'
-                                }`}>
-                                {connectionState === 'connecting' ? (
-                                    <Loader2 className="w-5 h-5 text-white animate-spin" />
-                                ) : (
-                                    <div className={`w-3 h-3 rounded-full bg-white ${connectionState === 'connected' ? 'animate-pulse' : ''}`} />
-                                )}
-                            </div>
-                            <div>
-                                <p className="font-medium text-white">
-                                    {otherUser?.name || 'Waiting for participant...'}
-                                </p>
-                                <p className="text-sm text-gray-400">
-                                    {connectionState === 'connected' ? 'In Session' :
-                                        connectionState === 'connecting' ? 'Connecting...' :
-                                            'Initializing...'}
-                                </p>
-                            </div>
+
+            <div className="min-h-screen bg-gray-900 flex flex-col">
+                {/* Session Info Header */}
+                <header className="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 px-4 py-3 flex items-center justify-between z-20">
+                    <div className="flex items-center gap-4">
+                        <div className={`w-3 h-3 rounded-full ${connectionState === 'connected' ? 'bg-green-500 animate-pulse' :
+                                connectionState === 'ready' ? 'bg-yellow-500' :
+                                    'bg-gray-500'
+                            }`} />
+
+                        <div>
+                            <p className="font-medium text-white text-sm flex items-center gap-2">
+                                <User className="w-4 h-4 text-gray-400" />
+                                {sessionInfo?.is_therapist
+                                    ? sessionInfo?.patient_name || 'Patient'
+                                    : sessionInfo?.therapist_name || 'Therapist'
+                                }
+                            </p>
+                            <p className="text-xs text-gray-400 capitalize">
+                                {sessionInfo?.service_type?.replace(/_/g, ' ') || 'Session'} • {sessionInfo?.duration_minutes || 50}min
+                            </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            {connectionState === 'connected' && (
-                                <>
-                                    <div className="px-4 py-2 bg-gray-700 rounded-lg text-white font-mono">
-                                        {formatDuration(callDuration)}
-                                    </div>
-                                    {/* Connection Quality Indicator */}
-                                    <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${connectionQuality === 'excellent' ? 'bg-green-500/20 text-green-400' :
-                                        connectionQuality === 'good' ? 'bg-blue-500/20 text-blue-400' :
-                                            connectionQuality === 'fair' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                connectionQuality === 'poor' ? 'bg-red-500/20 text-red-400' :
-                                                    'bg-gray-700 text-gray-400'
-                                        }`}>
-                                        <span className={`w-2 h-2 rounded-full ${connectionQuality === 'excellent' ? 'bg-green-400' :
-                                            connectionQuality === 'good' ? 'bg-blue-400' :
-                                                connectionQuality === 'fair' ? 'bg-yellow-400' :
-                                                    connectionQuality === 'poor' ? 'bg-red-400' :
-                                                        'bg-gray-400'
-                                            }`} />
-                                        {connectionQuality}
-                                    </div>
-                                    {/* Screen Share Indicator */}
-                                    {isScreenSharing && (
-                                        <div className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs font-medium flex items-center gap-1">
-                                            <Monitor className="w-3 h-3" />
-                                            Sharing Screen
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        {/* Call Duration */}
+                        {connectionState === 'connected' && (
+                            <div className="px-3 py-1.5 bg-gray-700/50 rounded-lg text-white font-mono text-sm flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-gray-400" />
+                                {formatDuration(callDuration)}
+                            </div>
+                        )}
+
+                        {/* Notes Button - Therapist Only */}
+                        {sessionInfo?.is_therapist && (
                             <Button
                                 variant="ghost"
-                                size="icon"
-                                onClick={() => setShowChat(!showChat)}
-                                className={`text-gray-400 hover:text-white hover:bg-gray-700 ${showChat ? 'bg-gray-700 text-white' : ''}`}
+                                size="sm"
+                                onClick={() => setShowNotes(!showNotes)}
+                                className={`text-white hover:bg-gray-700 ${showNotes ? 'bg-primary' : ''}`}
                             >
-                                <MessageCircle className="w-5 h-5" />
+                                <FileText className="w-4 h-4 mr-2" />
+                                Notes
+                                {saving && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
                             </Button>
+                        )}
+
+                        {/* Security Badge */}
+                        <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 rounded-lg">
+                            <Shield className="w-3.5 h-3.5 text-green-400" />
+                            <span className="text-xs text-green-400 font-medium">Encrypted</span>
                         </div>
-                    </header>
+                    </div>
+                </header>
 
-                    {/* Video Grid */}
-                    <div className="flex-1 p-4 flex items-center justify-center relative">
-                        {/* Remote Video (Large) */}
-                        <div className="w-full h-full max-w-5xl rounded-2xl overflow-hidden bg-gray-800 relative">
-                            <video
-                                ref={remoteVideoRef}
-                                autoPlay
-                                playsInline
-                                className="w-full h-full object-cover"
-                            />
+                {/* Main Content */}
+                <div className="flex-1 flex relative">
+                    {/* Jitsi Meeting Container */}
+                    <div className={`flex-1 relative transition-all duration-300 ${showNotes ? 'mr-96' : ''}`}>
+                        {connectionState === 'loading' && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+                                <div className="text-center">
+                                    <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+                                    <p className="text-gray-400">Loading video conference...</p>
+                                </div>
+                            </div>
+                        )}
 
-                            {/* Placeholder when no remote video */}
-                            {connectionState !== 'connected' && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                                    <div className="text-center">
-                                        {otherUser?.avatar ? (
-                                            <img
-                                                src={otherUser.avatar}
-                                                alt={otherUser.name}
-                                                className="w-24 h-24 rounded-full object-cover mx-auto mb-4"
-                                            />
-                                        ) : (
-                                            <div className="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center mx-auto mb-4">
-                                                <span className="text-3xl font-serif text-white">
-                                                    {otherUser?.name?.charAt(0) || '?'}
-                                                </span>
+                        <JitsiMeeting
+                            domain="meet.ffmuc.net"
+                            roomName={getSafeRoomName()}
+                            configOverwrite={{
+                                // Direct join - no waiting
+                                startWithAudioMuted: false,
+                                startWithVideoMuted: mode === 'audio',
+                                prejoinPageEnabled: false,
+                                prejoinConfig: { enabled: false },
+                                
+                                // Disable ALL authentication and lobby features
+                                enableLobbyChat: false,
+                                hideLobbyButton: true,
+                                disableModeratorIndicator: true,
+                                disableRemoteMute: true,
+                                remoteVideoMenu: { disableKick: true, disableGrantModerator: true },
+                                
+                                // Hide Jitsi branding completely
+                                hideConferenceSubject: true,
+                                hideConferenceTimer: false,
+                                hideRecordingLabel: true,
+                                disableProfile: true,
+                                
+                                // Disable features that require auth
+                                fileRecordingsEnabled: false,
+                                liveStreamingEnabled: false,
+                                transcribingEnabled: false,
+                                enableClosePage: false,
+                                
+                                // Privacy & Security
+                                disableDeepLinking: true,
+                                disableInviteFunctions: true,
+                                disableThirdPartyRequests: true,
+                                doNotStoreRoom: true,
+                                enableInsecureRoomNameWarning: false,
+                                enableEmailInStats: false,
+                                
+                                // Audio/Video
+                                enableNoisyMicDetection: true,
+                                enableNoAudioDetection: true,
+                                startAudioOnly: mode === 'audio',
+                                disableLocalVideoFlip: false,
+                                
+                                // Simplified toolbar
+                                toolbarButtons: [
+                                    'microphone',
+                                    'camera',
+                                    'desktop',
+                                    'fullscreen',
+                                    'fodeviceselection',
+                                    'hangup',
+                                    'chat',
+                                    'tileview',
+                                    'settings',
+                                ],
+                                
+                                // Minimal notifications
+                                notifications: [],
+                                disablePolls: true,
+                                disableReactions: true,
+                                disableSelfView: false,
+                                disableSelfViewSettings: true,
+                            }}
+                            interfaceConfigOverwrite={{
+                                // Completely hide Jitsi branding
+                                SHOW_JITSI_WATERMARK: false,
+                                SHOW_WATERMARK_FOR_GUESTS: false,
+                                SHOW_BRAND_WATERMARK: false,
+                                BRAND_WATERMARK_LINK: '',
+                                SHOW_POWERED_BY: false,
+                                SHOW_PROMOTIONAL_CLOSE_PAGE: false,
+                                SHOW_CHROME_EXTENSION_BANNER: false,
+                                
+                                // Custom styling
+                                DEFAULT_BACKGROUND: '#111827',
+                                
+                                // Disable unnecessary features
+                                DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+                                MOBILE_APP_PROMO: false,
+                                HIDE_INVITE_MORE_HEADER: true,
+                                HIDE_DEEP_LINKING_LOGO: true,
+                                GENERATE_ROOMNAMES_ON_WELCOME_PAGE: false,
+                                DISPLAY_WELCOME_FOOTER: false,
+                                DISPLAY_WELCOME_PAGE_ADDITIONAL_CARD: false,
+                                DISPLAY_WELCOME_PAGE_CONTENT: false,
+                                DISPLAY_WELCOME_PAGE_TOOLBAR_ADDITIONAL_CONTENT: false,
+                                
+                                // Display names
+                                DEFAULT_REMOTE_DISPLAY_NAME: 'Participant',
+                                DEFAULT_LOCAL_DISPLAY_NAME: 'You',
+                                
+                                // Toolbar
+                                TOOLBAR_ALWAYS_VISIBLE: false,
+                                TOOLBAR_TIMEOUT: 4000,
+                                SETTINGS_SECTIONS: ['devices', 'language'],
+                                
+                                // Video layout
+                                FILM_STRIP_MAX_HEIGHT: 120,
+                                VERTICAL_FILMSTRIP: true,
+                                
+                                // Disable authentication UI
+                                AUTHENTICATION_ENABLE: false,
+                            }}
+                            userInfo={{
+                                displayName: getDisplayName(),
+                                email: user?.email || undefined,
+                            }}
+                            onApiReady={handleApiReady}
+                            getIFrameRef={(iframeRef) => {
+                                if (iframeRef) {
+                                    iframeRef.style.height = '100%';
+                                    iframeRef.style.width = '100%';
+                                }
+                            }}
+                        />
+                    </div>
+
+                    {/* Notes Side Panel - Therapist Only */}
+                    {sessionInfo?.is_therapist && showNotes && (
+                        <div className="fixed right-0 top-0 h-full w-96 bg-gray-800 border-l border-gray-700 flex flex-col z-30 shadow-2xl">
+                            {/* Notes Header */}
+                            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-semibold text-white flex items-center gap-2">
+                                        <FileText className="w-4 h-4 text-primary" />
+                                        Session Notes
+                                    </h3>
+                                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                                        <Lock className="w-3 h-3" />
+                                        HIPAA-compliant • Auto-saves
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setShowNotes(false)}
+                                    className="text-gray-400 hover:text-white"
+                                >
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
+
+                            {/* Patient Info */}
+                            <div className="px-4 py-3 bg-gray-700/30 border-b border-gray-700">
+                                <p className="text-sm text-gray-300">
+                                    <span className="text-gray-500">Patient:</span> {sessionInfo?.patient_name}
+                                </p>
+                                <p className="text-xs text-gray-500 capitalize">
+                                    {sessionInfo?.service_type?.replace(/_/g, ' ')} Session
+                                </p>
+                            </div>
+
+                            {/* Format Toggle */}
+                            <div className="p-4 border-b border-gray-700">
+                                <div className="flex gap-1 bg-gray-700 p-1 rounded-lg">
+                                    <button
+                                        onClick={() => setNotesMode('soap')}
+                                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${notesMode === 'soap'
+                                                ? 'bg-primary text-white'
+                                                : 'text-gray-400 hover:text-white'
+                                            }`}
+                                    >
+                                        SOAP Format
+                                    </button>
+                                    <button
+                                        onClick={() => setNotesMode('simple')}
+                                        className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${notesMode === 'simple'
+                                                ? 'bg-primary text-white'
+                                                : 'text-gray-400 hover:text-white'
+                                            }`}
+                                    >
+                                        Simple
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Notes Content */}
+                            <div className="flex-1 overflow-y-auto p-4">
+                                {notesMode === 'soap' ? (
+                                    <div className="space-y-3">
+                                        {SOAP_SECTIONS.map((section) => (
+                                            <div
+                                                key={section.key}
+                                                className={`border-l-4 ${section.color} bg-gray-700/30 rounded-r-lg overflow-hidden`}
+                                            >
+                                                <button
+                                                    onClick={() => setExpandedSection(
+                                                        expandedSection === section.key ? '' : section.key
+                                                    )}
+                                                    className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-700/50 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium text-white">{section.label}</span>
+                                                        {soapNotes[section.key as keyof SOAPNote] && (
+                                                            <CheckCircle2 className="w-3 h-3 text-green-400" />
+                                                        )}
+                                                    </div>
+                                                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${expandedSection === section.key ? 'rotate-180' : ''
+                                                        }`} />
+                                                </button>
+                                                {expandedSection === section.key && (
+                                                    <div className="px-3 pb-3">
+                                                        <textarea
+                                                            value={soapNotes[section.key as keyof SOAPNote]}
+                                                            onChange={(e) => setSoapNotes(prev => ({
+                                                                ...prev,
+                                                                [section.key]: e.target.value
+                                                            }))}
+                                                            placeholder={section.placeholder}
+                                                            className="w-full h-24 p-2 text-sm bg-gray-800 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-500 resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                        <p className="text-white font-medium">{otherUser?.name || 'Waiting...'}</p>
-                                        <p className="text-gray-400 text-sm mt-1">
-                                            {connectionState === 'connecting' ? 'Connecting...' : 'Waiting to connect'}
-                                        </p>
-                                        {connectionState === 'connecting' && (
-                                            <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mt-4" />
-                                        )}
+                                        ))}
                                     </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Local Video (Picture-in-Picture) */}
-                        <div className="absolute bottom-8 right-8 w-48 h-36 rounded-xl overflow-hidden bg-gray-800 shadow-2xl border-2 border-gray-700 group">
-                            <video
-                                ref={localVideoRef}
-                                autoPlay
-                                playsInline
-                                muted
-                                className="w-full h-full object-cover"
-                                style={{ transform: 'scaleX(-1)' }}
-                            />
-                            {isVideoOff && (
-                                <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
-                                    <VideoOff className="w-8 h-8 text-gray-500" />
-                                </div>
-                            )}
-                            {/* Status indicators */}
-                            <div className="absolute bottom-2 left-2 flex gap-1">
-                                {isMuted && (
-                                    <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
-                                        <MicOff className="w-3 h-3 text-white" />
+                                ) : (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Session Notes
+                                        </label>
+                                        <textarea
+                                            value={simpleNotes}
+                                            onChange={(e) => setSimpleNotes(e.target.value)}
+                                            placeholder="Type your session notes here..."
+                                            className="w-full h-64 p-3 text-sm bg-gray-800 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-500 resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        />
                                     </div>
                                 )}
                             </div>
+
+                            {/* Notes Footer */}
+                            <div className="p-4 border-t border-gray-700">
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-xs text-gray-500">
+                                        {saving ? (
+                                            <span className="flex items-center gap-1">
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                Saving...
+                                            </span>
+                                        ) : lastSaved ? (
+                                            `Saved ${lastSaved.toLocaleTimeString()}`
+                                        ) : (
+                                            'Not saved yet'
+                                        )}
+                                    </p>
+                                </div>
+                                <Button
+                                    onClick={() => saveNotes(false)}
+                                    disabled={saving}
+                                    className="w-full bg-primary hover:bg-primary/90"
+                                >
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Save Notes
+                                </Button>
+                            </div>
                         </div>
-                    </div>
-
-                    {/* Controls */}
-                    <div className="p-6 flex items-center justify-center gap-4">
-                        {/* Mute */}
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            onClick={toggleMute}
-                            className={`w-14 h-14 rounded-full ${isMuted ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
-                            title={isMuted ? 'Unmute' : 'Mute'}
-                        >
-                            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-                        </Button>
-
-                        {/* Video toggle */}
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            onClick={toggleVideo}
-                            className={`w-14 h-14 rounded-full ${isVideoOff ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
-                            title={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
-                        >
-                            {isVideoOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
-                        </Button>
-
-                        {/* Speaker toggle */}
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            onClick={toggleSpeaker}
-                            className={`w-14 h-14 rounded-full ${isSpeakerMuted ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
-                            title={isSpeakerMuted ? 'Unmute speaker' : 'Mute speaker'}
-                        >
-                            {isSpeakerMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
-                        </Button>
-
-                        {/* Screen Share toggle */}
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            onClick={toggleScreenShare}
-                            className={`w-14 h-14 rounded-full ${isScreenSharing ? 'bg-purple-500 hover:bg-purple-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
-                            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
-                        >
-                            {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
-                        </Button>
-
-                        {/* Chat toggle */}
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            onClick={() => setShowChat(!showChat)}
-                            className={`w-14 h-14 rounded-full ${showChat ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white relative`}
-                            title="Toggle chat"
-                        >
-                            <MessageCircle className="w-6 h-6" />
-                            {chatMessages.length > 0 && !showChat && (
-                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center">
-                                    {chatMessages.length > 9 ? '9+' : chatMessages.length}
-                                </span>
-                            )}
-                        </Button>
-
-                        {/* Google Meet Fallback */}
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            onClick={generateGoogleMeetLink}
-                            className="w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 text-white"
-                            title="Switch to Google Meet"
-                        >
-                            <ExternalLink className="w-6 h-6" />
-                        </Button>
-
-                        {/* End Call */}
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            onClick={endCall}
-                            className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white"
-                            title="End call"
-                        >
-                            <PhoneOff className="w-6 h-6" />
-                        </Button>
-
-                        {/* Settings */}
-                        <Button
-                            variant="ghost"
-                            size="lg"
-                            className="w-14 h-14 rounded-full bg-gray-700 hover:bg-gray-600 text-white"
-                            title="Settings"
-                        >
-                            <Settings className="w-6 h-6" />
-                        </Button>
-                    </div>
+                    )}
                 </div>
 
-                {/* Chat Sidebar */}
-                {showChat && (
-                    <div className="fixed right-0 top-0 h-full w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-20">
-                        <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-                            <h3 className="font-semibold text-white">Session Chat</h3>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setShowChat(false)}
-                                className="text-gray-400 hover:text-white"
-                            >
-                                ×
-                            </Button>
-                        </div>
-                        <div className="flex-1 p-4 overflow-y-auto" ref={chatContainerRef}>
-                            {chatMessages.length === 0 ? (
-                                <div className="text-center text-gray-500 text-sm py-8">
-                                    No messages yet. Start the conversation!
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {chatMessages.map((msg, i) => (
-                                        <div key={i} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[80%] px-3 py-2 rounded-lg ${msg.sender === 'me'
-                                                ? 'bg-primary text-white'
-                                                : 'bg-gray-700 text-gray-200'
-                                                }`}>
-                                                <p className="text-sm">{msg.content}</p>
-                                                <p className="text-xs opacity-60 mt-1">{msg.time}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        <div className="p-4 border-t border-gray-700">
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    placeholder="Type a message..."
-                                    value={newChatMessage}
-                                    onChange={(e) => setNewChatMessage(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSendChatMessage()}
-                                    className="flex-1 px-4 py-2 bg-gray-700 rounded-lg text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-primary"
-                                />
-                                <Button onClick={handleSendChatMessage} className="bg-primary hover:bg-primary/90">
-                                    Send
-                                </Button>
+                {/* Bottom Info Bar */}
+                <footer className="bg-gray-800/80 backdrop-blur-sm border-t border-gray-700 px-4 py-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-4 text-gray-400">
+                            <div className="flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                                <span>End-to-end encrypted</span>
                             </div>
+                            <div className="hidden sm:flex items-center gap-1.5">
+                                <Video className="w-3.5 h-3.5" />
+                                <span>Secure Video Session</span>
+                            </div>
+                        </div>
+                        <div className="text-gray-500">
+                            Powered by <span className="text-primary">The 3 Tree Counseling</span>
                         </div>
                     </div>
-                )}
-
-                {/* Google Meet Fallback Modal */}
-                {showGoogleMeetModal && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                        <div className="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-                            <div className="text-center mb-6">
-                                <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <ExternalLink className="w-8 h-8 text-green-400" />
-                                </div>
-                                <h3 className="text-xl font-semibold text-white mb-2">Switch to Google Meet</h3>
-                                <p className="text-gray-400 text-sm">
-                                    Having connection issues? You can continue your session on Google Meet as a backup option.
-                                </p>
-                            </div>
-
-                            <div className="bg-gray-700/50 rounded-xl p-4 mb-6">
-                                <p className="text-xs text-gray-400 mb-2">Instructions:</p>
-                                <ol className="text-sm text-gray-300 space-y-1 list-decimal list-inside">
-                                    <li>Click the button below to open Google Meet</li>
-                                    <li>Copy the meeting link from Google Meet</li>
-                                    <li>Share it with your session partner via chat</li>
-                                </ol>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <Button
-                                    variant="outline"
-                                    className="flex-1 text-gray-300 border-gray-600 hover:bg-gray-700"
-                                    onClick={() => setShowGoogleMeetModal(false)}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                                    onClick={() => {
-                                        openGoogleMeet();
-                                        setShowGoogleMeetModal(false);
-                                    }}
-                                >
-                                    <ExternalLink className="w-4 h-4 mr-2" />
-                                    Open Google Meet
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                </footer>
             </div>
         </>
     );

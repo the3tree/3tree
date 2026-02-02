@@ -4,7 +4,7 @@
 
 import { Helmet } from 'react-helmet-async';
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { gsap } from 'gsap';
 import {
     ChevronRight,
@@ -119,6 +119,9 @@ export default function AssessmentTake() {
         }
     };
 
+    const [searchParams] = useSearchParams();
+    const redirectUrl = searchParams.get('redirect');
+
     const handleSubmit = async () => {
         if (!assessment) return;
 
@@ -134,6 +137,12 @@ export default function AssessmentTake() {
             }
 
             setResult(calculatedResult);
+
+            if (redirectUrl) {
+                setTimeout(() => {
+                    navigate(redirectUrl);
+                }, 3000);
+            }
         } catch (error) {
             toast({
                 title: 'Error',

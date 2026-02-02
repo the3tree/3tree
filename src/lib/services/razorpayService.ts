@@ -61,6 +61,19 @@ interface RazorpayCheckoutOptions {
     handler: (response: RazorpayPaymentResult) => void;
     modal?: {
         ondismiss?: () => void;
+        confirm_close?: boolean;
+    };
+    config?: {
+        display?: {
+            blocks?: Record<string, any>;
+            sequence?: string[];
+            preferences?: Record<string, any>;
+        };
+    };
+    readonly?: {
+        contact?: boolean;
+        email?: boolean;
+        name?: boolean;
     };
 }
 
@@ -156,6 +169,30 @@ export async function openPaymentModal(
                 console.log('Payment modal dismissed');
                 onFailure('Payment cancelled');
             },
+            confirm_close: true, // Ask user to confirm before closing
+        },
+        config: {
+            display: {
+                blocks: {
+                    banks: {
+                        name: 'All payment methods',
+                        instruments: [
+                            { method: 'upi' },
+                            { method: 'card' },
+                            { method: 'netbanking' },
+                        ],
+                    },
+                },
+                sequence: ['block.banks'],
+                preferences: {
+                    show_default_blocks: true,
+                },
+            },
+        },
+        readonly: {
+            contact: false, // Allow editing contact
+            email: false, // Allow editing email  
+            name: false, // Allow editing name
         },
     };
 

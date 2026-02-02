@@ -161,22 +161,29 @@ export async function scheduleBookingReminders(data: BookingAutomationData): Pro
 
 /**
  * Generate meeting URL for video sessions
+ * Creates a unique room ID and stores it in the booking for Jitsi Meet integration
  */
 export async function generateMeetingUrl(bookingId: string): Promise<string> {
-    // Generate a unique room ID based on booking
-    const roomId = `session-${bookingId.substring(0, 8)}-${Date.now()}`;
+    // Generate a unique room ID based on booking ID and timestamp
+    const roomId = `session-${bookingId.substring(0, 8)}-${Date.now().toString(36)}`;
 
-    // Update booking with room_id
-    await supabase
+    // Update booking with video_room_id (used by VideoCallRoom to fetch booking info)
+    const { error } = await supabase
         .from('bookings')
         .update({
-            room_id: roomId,
-            meeting_url: `${window.location.origin}/call/${roomId}`
+            video_room_id: roomId,
+            room_id: roomId, // Keep for backward compatibility
+            meeting_url: `${window.location.origin}/video-call/${roomId}`
         })
         .eq('id', bookingId);
 
-    return `${window.location.origin}/call/${roomId}`;
+    if (error) {
+        console.error('Failed to update booking with meeting URL:', error);
+    }
+
+    return `${window.location.origin}/video-call/${roomId}`;
 }
+
 
 /**
  * Generate click-to-call link for phone sessions

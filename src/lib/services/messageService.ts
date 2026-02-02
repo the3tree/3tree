@@ -118,6 +118,7 @@ export async function sendMessage(
     conversationId: string,
     senderId: string,
     content: string,
+    receiverId: string,
     fileUrl?: string,
     fileType?: string,
     fileName?: string
@@ -128,6 +129,7 @@ export async function sendMessage(
             .insert({
                 conversation_id: conversationId,
                 sender_id: senderId,
+                receiver_id: receiverId,
                 content: content.trim(),
                 file_url: fileUrl || null,
                 file_type: fileType || null,

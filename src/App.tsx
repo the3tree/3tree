@@ -32,6 +32,7 @@ import DASTQuestionnaire from "./pages/DASTQuestionnaire";
 import SCOFFQuestionnaire from "./pages/SCOFFQuestionnaire";
 import BFIQuestionnaire from "./pages/BFIQuestionnaire";
 import Topics from "./pages/Topics";
+import TopicDetail from "./pages/TopicDetail";
 import OurStory from "./pages/OurStory";
 import CounsellingTypes from "./pages/CounsellingTypes";
 import CounsellingModes from "./pages/CounsellingModes";
@@ -113,6 +114,7 @@ const App = () => (
                 <Route path="/faqs" element={<FAQs />} />
                 <Route path="/guides" element={<DownloadableGuides />} />
                 <Route path="/topics" element={<Topics />} />
+                <Route path="/topics/:slug" element={<TopicDetail />} />
                 <Route path="/for-clients" element={<ForClients />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/supervision-therapists" element={<SupervisionTherapists />} />
@@ -150,6 +152,7 @@ const App = () => (
 
                 {/* Communication */}
                 <Route path="/call/:roomId" element={<VideoCallRoom />} />
+                <Route path="/video-call/:roomId" element={<VideoCallRoom />} />
                 <Route path="/messages" element={<MessagesPage />} />
                 <Route path="/messages/:conversationId" element={<MessagesPage />} />
 

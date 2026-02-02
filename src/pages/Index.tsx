@@ -3,11 +3,14 @@ import Layout from "@/components/layout/Layout";
 
 // Home Page Sections - Using cleaned-up components
 import Hero from "@/components/home/Hero";
+import MindBodySoul from "@/components/home/MindBodySoul";
 import ServicesCarousel from "@/components/home/ServicesCarousel";
 import WhyChooseUs from "@/components/home/WhyChooseUs";
 import HowItWorks from "@/components/home/HowItWorks";
 import AssessmentsHighlight from "@/components/home/AssessmentsHighlight";
+import FounderMessage from "@/components/home/FounderMessage";
 import CTASection from "@/components/home/CTASection";
+
 
 /**
  * Home Page - Premium Landing
@@ -53,13 +56,19 @@ export default function Index() {
                     {/* 1. Hero with emotional narrative */}
                     <Hero />
 
-                    {/* 2. Services Carousel - the3tree.com style */}
+                    {/* 2. Mind Body Soul - Animated philosophy section */}
+                    <MindBodySoul />
+
+                    {/* 3. Types of Therapy - Services Carousel */}
                     <ServicesCarousel />
 
-                    {/* 3. Why Choose Us - Trust building */}
+                    {/* 4. Why Choose Us - Trust building */}
                     <WhyChooseUs />
 
-                    {/* 4. How It Works - Simple steps */}
+                    {/* 5. Founder Message - Personal touch */}
+                    <FounderMessage />
+
+                    {/* 6. How It Works - Simple steps */}
                     <HowItWorks />
 
                     {/* 5. Assessments - Free tools */}

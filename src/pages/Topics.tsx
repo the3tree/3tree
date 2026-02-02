@@ -6,11 +6,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 const topics = [
+  // Row 1: 1 blue card (position 1)
   {
     title: "ADHD",
     fullTitle: "Attention-Deficit/Hyperactivity Disorder",
     description: "Attention-Deficit/Hyperactivity Disorder (ADHD) is often portrayed as a childhood condition characterised by hyperactivity, but in...",
-    imageType: "text", // using text-based placeholder art
+    imageType: "text",
     bgColor: "bg-white",
     textColor: "text-[#1E293B]"
   },
@@ -30,6 +31,7 @@ const topics = [
     bgColor: "bg-white",
     textColor: "text-[#1E293B]"
   },
+  // Row 2: 2 consecutive blues (positions 4-5)
   {
     title: "ANXIETY",
     fullTitle: "Anxiety",
@@ -42,33 +44,34 @@ const topics = [
     title: "Assertiveness Training",
     fullTitle: "Assertiveness Training",
     description: "Assertiveness is a communication skill that allows individuals to express their thoughts, feelings, needs, and...",
-    imageType: "text", 
-    bgColor: "bg-white",
-    textColor: "text-[#1E293B]"
+    imageType: "dark", 
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
   },
   {
     title: "Attachment Styles",
     fullTitle: "Attachment Styles",
     description: "Attachment styles describe the patterns through which individuals form emotional bonds, respond to closeness, handle...",
-    imageType: "text",
-    bgColor: "bg-white",
-    textColor: "text-[#1E293B]"
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
   },
+  // Row 3: 1 blue card (position 7)
   {
     title: "Autism",
     fullTitle: "Autism (ASD)",
     description: "Autism Spectrum Disorder (ASD) is a neurodevelopmental condition that affects how a person processes information,...",
     imageType: "dark",
-    bgColor: "bg-[#2D3E5F]", 
+    bgColor: "bg-[#1E293B]", 
     textColor: "text-white"
   },
   {
     title: "Behavioral Therapy",
     fullTitle: "Behavioral Therapy",
     description: "Behavioral Therapy is a form of psychotherapy that focuses on identifying and modifying unhealthy patterns...",
-    imageType: "dark",
-    bgColor: "bg-[#1E293B]",
-    textColor: "text-white"
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
   },
   {
     title: "Bereavement",
@@ -77,6 +80,198 @@ const topics = [
     imageType: "text",
     bgColor: "bg-white",
     textColor: "text-[#1E293B]"
+  },
+  // Row 4: 2 consecutive blues (positions 9-10)
+  {
+    title: "Bipolar Disorder",
+    fullTitle: "Bipolar Disorder",
+    description: "Bipolar Disorder is a mood disorder characterised by intense shifts in mood, energy, behaviour, and...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Boundaries",
+    fullTitle: "Boundaries",
+    description: "Personal boundaries are the emotional, physical, and psychological limits that define what a person is...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Burnout",
+    fullTitle: "Burnout",
+    description: "Burnout is a state of emotional, mental, and physical exhaustion caused by prolonged or excessive...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  // Row 5: 1 blue card (position 13)
+  {
+    title: "Cognitive Distortions",
+    fullTitle: "Cognitive Distortions",
+    description: "Cognitive distortions are habitual, inaccurate patterns of thinking that negatively influence how individuals...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Child Psychology",
+    fullTitle: "Child Psychology",
+    description: "Child Psychology is the study of how children think, feel, learn, behave, and develop from...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  {
+    title: "Cognitive Behavioral Therapy (CBT)",
+    fullTitle: "Cognitive Behavioral Therapy (CBT)",
+    description: "CBT is a widely used, evidence-based form of psychotherapy that focuses on...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  // Row 6: 2 consecutive blues (positions 16-17)
+  {
+    title: "Compassion Fatigue",
+    fullTitle: "Compassion Fatigue",
+    description: "Compassion Fatigue is a state of emotional, mental, and physical exhaustion that occurs when someone...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Coping Mechanisms",
+    fullTitle: "Coping Mechanisms",
+    description: "Coping mechanisms are the strategies individuals use—consciously or unconsciously—to manage stress, regulate emotions, and...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Conflict Resolution",
+    fullTitle: "Conflict Resolution",
+    description: "Conflict Resolution is the process of identifying, understanding, and addressing disagreements or tensions between...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  // Row 7: 1 blue card (position 19)
+  {
+    title: "Coping With Childhood Trauma",
+    fullTitle: "Coping With Childhood Trauma",
+    description: "Childhood trauma refers to deeply distressing or overwhelming experiences that occur before the age of...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  {
+    title: "Crisis Intervention",
+    fullTitle: "Crisis Intervention",
+    description: "Crisis Intervention is a short-term, immediate, and supportive process designed to help individuals experiencing...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Counselling Process",
+    fullTitle: "Counselling Process",
+    description: "The counselling process is the structured, professional approach through which a psychologist or counsellor helps...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  // Row 8: 2 consecutive blues (positions 22-23)
+  {
+    title: "Cultural Psychology",
+    fullTitle: "Cultural Psychology",
+    description: "Cultural Psychology is the study of how culture influences human thoughts, emotions, behaviour, identity, and...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Depression",
+    fullTitle: "Depression",
+    description: "Depression is a serious mood disorder characterized by persistent sadness, loss of interest, and emotional numbness...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Defense Mechanisms",
+    fullTitle: "Defense Mechanisms",
+    description: "Defense mechanisms are unconscious psychological strategies individuals use to protect themselves from anxiety, emotional...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  // Row 9: 1 blue card (position 25)
+  {
+    title: "Detachment Issues",
+    fullTitle: "Detachment Issues",
+    description: "Detachment issues refer to difficulties in forming emotional connections, maintaining closeness, or experiencing feelings fully...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  {
+    title: "Disability Psychology",
+    fullTitle: "Disability Psychology",
+    description: "Disability psychology is the study of how physical, intellectual, sensory, or developmental disabilities affect an...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Developmental Disorders",
+    fullTitle: "Developmental Disorders",
+    description: "Developmental disorders are a group of conditions that begin in childhood and affect how a...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  // Row 10: 2 consecutive blues (positions 28-29)
+  {
+    title: "Domestic Violence Trauma",
+    fullTitle: "Domestic Violence Trauma",
+    description: "Domestic violence trauma is the emotional, psychological, and physical impact of abuse experienced within...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Distress Tolerance",
+    fullTitle: "Distress Tolerance",
+    description: "Distress tolerance refers to the ability to endure and manage intense emotional discomfort without engaging...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Dissociation",
+    fullTitle: "Dissociation",
+    description: "Dissociation is a psychological response in which a person feels disconnected from their thoughts, feelings,...",
+    imageType: "text",
+    bgColor: "bg-white",
+    textColor: "text-[#1E293B]"
+  },
+  // Row 11: 1 blue card (position 32)
+  {
+    title: "Dysfunctional Family Dynamics",
+    fullTitle: "Dysfunctional Family Dynamics",
+    description: "Dysfunctional family dynamics refer to unhealthy interaction patterns, communication styles, and emotional environments that...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
+  },
+  {
+    title: "Emotion Regulation",
+    fullTitle: "Emotion Regulation",
+    description: "Emotion regulation is the ability to recognize, understand, and manage emotions in healthy, adaptive ways...",
+    imageType: "dark",
+    bgColor: "bg-[#1E293B]",
+    textColor: "text-white"
   },
 ];
 
@@ -101,6 +296,11 @@ const faqs = [
 
 export default function Topics() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(9);
+
+  const handleLoadMore = () => {
+    setVisibleCount((current) => Math.min(current + 9, topics.length));
+  };
 
   return (
     <>
@@ -148,7 +348,7 @@ export default function Topics() {
         <section id="topics-grid" className="py-16 bg-white">
           <div className="container mx-auto px-4 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-              {topics.map((topic, index) => (
+              {topics.slice(0, visibleCount).map((topic, index) => (
                 <div key={index} className="flex flex-col group cursor-pointer">
                   {/* Card Image Area */}
                   <div className={`aspect-[4/3] w-full relative flex items-center justify-center p-8 mb-6 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl ${topic.bgColor} ${topic.bgColor === 'bg-white' ? 'border-2 border-[#1E293B]' : 'shadow-md'}`}>
@@ -183,7 +383,7 @@ export default function Topics() {
                       {topic.description}
                     </p>
                     <Link 
-                      to="#" 
+                      to={`/topics/${topic.title.toLowerCase().replace(/\s+/g, '-')}`}
                       className="inline-flex items-center text-[#1E293B] font-bold hover:text-blue-700 transition-colors text-sm uppercase tracking-wide border-b border-[#1E293B] hover:border-blue-700 pb-1"
                     >
                       Read Guide
@@ -193,11 +393,17 @@ export default function Topics() {
               ))}
             </div>
             
-            <div className="text-center mt-16">
-              <Button variant="outline" className="border-[#1E293B] text-[#1E293B] hover:bg-[#1E293B] hover:text-white px-8 py-6 uppercase tracking-wider text-sm font-semibold">
-                Load More
-              </Button>
-            </div>
+            {visibleCount < topics.length && (
+              <div className="text-center mt-16">
+                <Button
+                  variant="outline"
+                  className="border-[#1E293B] text-[#1E293B] hover:bg-[#1E293B] hover:text-white px-8 py-6 uppercase tracking-wider text-sm font-semibold"
+                  onClick={handleLoadMore}
+                >
+                  Load More
+                </Button>
+              </div>
+            )}
           </div>
         </section>
 

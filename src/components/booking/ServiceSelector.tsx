@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { User, Heart, Users, MessageCircle, Clock, Check } from 'lucide-react';
+import { User, Heart, Users, MessageCircle, Check } from 'lucide-react';
 import { gsap } from 'gsap';
 import type { ServiceType } from '@/lib/bookingService';
 
@@ -123,28 +123,6 @@ export default function ServiceSelector({ services, selectedService, onSelect }:
                                     </div>
                                 </div>
 
-                                {/* Meta info */}
-                                <div className="flex items-center gap-4 mt-4">
-                                    <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                                        <Clock className="w-4 h-4" />
-                                        <span>{service.duration} min</span>
-                                    </div>
-                                    <div
-                                        className={`text-lg font-bold ${service.price === 0
-                                            ? 'text-green-600'
-                                            : isSelected
-                                                ? 'text-cyan-600'
-                                                : 'text-gray-900'
-                                            }`}
-                                    >
-                                        {service.price === 0 ? 'Free' : `₹${service.price.toLocaleString('en-IN')}`}
-                                    </div>
-                                    {service.price === 0 && (
-                                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                                            Introductory
-                                        </span>
-                                    )}
-                                </div>
                             </div>
                         </div>
 

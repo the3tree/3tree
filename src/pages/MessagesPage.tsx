@@ -139,10 +139,27 @@ export default function MessagesPage() {
         if (!newMessage.trim() || !conversationId || !user || sending) return;
 
         setSending(true);
-        const { error } = await sendMessage(conversationId, user.id, newMessage.trim());
+        const receiverId = activeConversation?.otherParticipant?.id;
+        if (!receiverId) {
+            toast({
+                title: "Message failed",
+                description: "Recipient not found for this conversation.",
+                variant: "destructive",
+            });
+            setSending(false);
+            return;
+        }
+
+        const { error } = await sendMessage(conversationId, user.id, newMessage.trim(), receiverId);
 
         if (!error) {
             setNewMessage("");
+        } else {
+            toast({
+                title: "Message failed",
+                description: error.message,
+                variant: "destructive",
+            });
         }
         setSending(false);
     };
@@ -155,7 +172,37 @@ export default function MessagesPage() {
         const { url, error } = await uploadMessageAttachment(file, conversationId);
 
         if (url && !error) {
-            await sendMessage(conversationId, user.id, `Sent a file: ${file.name}`, url, file.type, file.name);
+            const receiverId = activeConversation?.otherParticipant?.id;
+            if (!receiverId) {
+                toast({
+                    title: "Attachment failed",
+                    description: "Recipient not found for this conversation.",
+                    variant: "destructive",
+                });
+            } else {
+                const { error: sendError } = await sendMessage(
+                    conversationId,
+                    user.id,
+                    `Sent a file: ${file.name}`,
+                    receiverId,
+                    url,
+                    file.type,
+                    file.name
+                );
+                if (sendError) {
+                    toast({
+                        title: "Attachment failed",
+                        description: sendError.message,
+                        variant: "destructive",
+                    });
+                }
+            }
+        } else if (error) {
+            toast({
+                title: "Upload failed",
+                description: error.message,
+                variant: "destructive",
+            });
         }
         setUploadingFile(false);
 

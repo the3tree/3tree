@@ -186,6 +186,24 @@ export const serviceTypes: ServiceType[] = [
         price: 2000,
         icon: 'AlertCircle',
         category: 'therapy'
+    },
+    {
+        id: 'yoga',
+        name: 'Yoga Therapy',
+        description: 'Holistic yoga sessions combining movement, breath work, and mindfulness for healing',
+        duration: 60,
+        price: 1500,
+        icon: 'Flower2',
+        category: 'therapy'
+    },
+    {
+        id: 'nutrition',
+        name: 'Nutrition Counseling',
+        description: 'Personalized nutrition guidance to support your mental and physical well-being',
+        duration: 45,
+        price: 2000,
+        icon: 'Apple',
+        category: 'consultation'
     }
 ];
 
@@ -981,11 +999,16 @@ export async function cancelBooking(
 ): Promise<{ success: boolean; error: string | null; refundEligible?: boolean }> {
     try {
         // Get booking to check cancellation policy
-        const { data: booking } = await supabase
+        const { data: booking, error: fetchError } = await supabase
             .from('bookings')
             .select('scheduled_at, status, amount, payment_status')
             .eq('id', bookingId)
             .single();
+
+        if (fetchError) {
+            console.error('Error fetching booking for cancellation:', fetchError);
+            return { success: false, error: 'Booking not found' };
+        }
 
         if (!booking) {
             return { success: false, error: 'Booking not found' };
@@ -1005,7 +1028,11 @@ export async function cancelBooking(
         const hoursUntilSession = (scheduledTime - now) / (1000 * 60 * 60);
         const refundEligible = hoursUntilSession >= 24;
 
-        const { error } = await supabase
+        // Try full update first, fallback to minimal update if columns don't exist
+        let updateError: unknown = null;
+
+        // First try with all columns
+        const { error: fullUpdateError } = await supabase
             .from('bookings')
             .update({
                 status: 'cancelled',
@@ -1016,13 +1043,34 @@ export async function cancelBooking(
             })
             .eq('id', bookingId);
 
-        if (error) throw error;
+        if (fullUpdateError) {
+            console.warn('Full cancel update failed, trying minimal update:', fullUpdateError);
 
-        // Update video session if exists
-        await supabase
-            .from('video_call_sessions')
-            .update({ status: 'ended' })
-            .eq('booking_id', bookingId);
+            // Fallback: just update status
+            const { error: minimalError } = await supabase
+                .from('bookings')
+                .update({
+                    status: 'cancelled',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', bookingId);
+
+            updateError = minimalError;
+        }
+
+        if (updateError) {
+            throw updateError;
+        }
+
+        // Update video session if exists (non-critical)
+        try {
+            await supabase
+                .from('video_call_sessions')
+                .update({ status: 'ended' })
+                .eq('booking_id', bookingId);
+        } catch (videoError) {
+            console.warn('Failed to update video session (non-critical):', videoError);
+        }
 
         return { success: true, error: null, refundEligible };
     } catch (error: unknown) {
