@@ -1,8 +1,8 @@
 /**
- * TherapistDashboard - Real data from Supabase database
+ * TherapistDashboard - Real data from Supabase database with enhanced analytics
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,10 +32,35 @@ import {
     Key,
     ExternalLink,
     Send,
-    BarChart3
+    BarChart3,
+    Activity,
+    Target,
+    Award,
+    Heart,
+    Sparkles,
+    ArrowUpRight,
+    ArrowDownRight,
+    PieChart as PieChartIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    BarChart,
+    Bar,
+    LineChart,
+    Line,
+    Legend
+} from 'recharts';
 
 // Types for therapist bookings
 interface SessionData {
@@ -608,27 +633,42 @@ export default function TherapistDashboard() {
                 </header>
 
                 <div ref={containerRef} className="container mx-auto px-4 lg:px-8 py-8">
-                    {/* Welcome */}
-                    <div className="dashboard-card mb-8">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    {/* Welcome - Enhanced Hero Section */}
+                    <div className="dashboard-card mb-8 bg-gradient-to-r from-[#161A30] via-[#1e2440] to-[#2d3a54] rounded-3xl p-8 text-white relative overflow-hidden">
+                        {/* Decorative elements */}
+                        <div className="absolute top-0 right-0 w-72 h-72 bg-white/5 rounded-full -translate-y-36 translate-x-36" />
+                        <div className="absolute bottom-0 left-0 w-56 h-56 bg-white/5 rounded-full translate-y-28 -translate-x-28" />
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
                             <div>
-                                <h1 className="text-3xl font-serif text-gray-900 mb-2">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Sparkles className="w-5 h-5 text-amber-400" />
+                                    <span className="text-sm text-white/70">Therapist Dashboard</span>
+                                </div>
+                                <h1 className="text-3xl font-serif mb-2">
                                     {getTimeOfDay()}, Dr. {user?.full_name?.split(' ')[0] || 'Therapist'} 👋
                                 </h1>
-                                <p className="text-gray-500">
+                                <p className="text-white/70">
                                     {upcomingToday > 0 ? (
-                                        <>You have <span className="font-semibold text-cyan-600">{upcomingToday} sessions</span> remaining today.</>
+                                        <>You have <span className="font-semibold text-cyan-400">{upcomingToday} sessions</span> remaining today.</>
                                     ) : (
-                                        <>No sessions scheduled for today.</>
+                                        <>No sessions scheduled for today. Time to catch up on notes!</>
                                     )}
                                 </p>
                             </div>
                             <div className="flex gap-3">
-                                <Button variant="outline" onClick={() => setAvailabilityOpen(!availabilityOpen)}>
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setAvailabilityOpen(!availabilityOpen)}
+                                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                                >
                                     <Settings className="w-4 h-4 mr-2" />
                                     Availability
                                 </Button>
-                                <Button variant="outline" onClick={loadTherapistData}>
+                                <Button 
+                                    onClick={loadTherapistData}
+                                    className="bg-white text-[#161A30] hover:bg-white/90"
+                                >
                                     <RefreshCw className="w-4 h-4 mr-2" />
                                     Refresh
                                 </Button>
@@ -636,37 +676,173 @@ export default function TherapistDashboard() {
                         </div>
                     </div>
 
-                    {/* Stats Grid */}
+                    {/* Stats Grid - Enhanced with icons and trends */}
                     <div className="dashboard-card grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 text-white">
+                        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 text-white relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10" />
                             <div className="flex items-center justify-between mb-3">
                                 <Calendar className="w-5 h-5 text-cyan-200" />
-                                <span className="text-xs text-cyan-200">{completedToday} completed</span>
+                                <span className="text-xs text-cyan-200 bg-white/20 px-2 py-0.5 rounded-full">{completedToday} done</span>
                             </div>
                             <p className="text-3xl font-bold">{stats.todaySessions}</p>
                             <p className="text-sm text-cyan-100">Today's Sessions</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-full -translate-y-8 translate-x-8" />
                             <div className="flex items-center justify-between mb-3">
                                 <Users className="w-5 h-5 text-purple-500" />
+                                <span className="text-xs text-purple-500 flex items-center gap-0.5">
+                                    <ArrowUpRight className="w-3 h-3" />
+                                    Active
+                                </span>
                             </div>
                             <p className="text-3xl font-bold text-gray-900">{stats.totalPatients}</p>
                             <p className="text-sm text-gray-500">Total Patients</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-full -translate-y-8 translate-x-8" />
                             <div className="flex items-center justify-between mb-3">
-                                <DollarSign className="w-5 h-5 text-green-500" />
+                                <DollarSign className="w-5 h-5 text-emerald-500" />
+                                <span className="text-xs text-emerald-500 flex items-center gap-0.5">
+                                    <ArrowUpRight className="w-3 h-3" />
+                                    Revenue
+                                </span>
                             </div>
-                            <p className="text-3xl font-bold text-gray-900">${stats.monthlyEarnings.toLocaleString()}</p>
+                            <p className="text-3xl font-bold text-gray-900">₹{stats.monthlyEarnings.toLocaleString()}</p>
                             <p className="text-sm text-gray-500">This Month</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-amber-50 rounded-full -translate-y-8 translate-x-8" />
                             <div className="flex items-center justify-between mb-3">
-                                <TrendingUp className="w-5 h-5 text-amber-500" />
-                                <span className="text-xs text-gray-400">{stats.totalReviews} reviews</span>
+                                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                                <span className="text-xs text-amber-600">{stats.totalReviews} reviews</span>
                             </div>
                             <p className="text-3xl font-bold text-gray-900">{stats.avgRating || '-'}</p>
                             <p className="text-sm text-gray-500">Avg Rating</p>
+                        </div>
+                    </div>
+
+                    {/* Analytics Section - NEW */}
+                    <div className="dashboard-card grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl p-5 border border-violet-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Activity className="w-4 h-4 text-violet-500" />
+                                <span className="text-xs font-medium text-violet-600">Weekly Hours</span>
+                            </div>
+                            <p className="text-2xl font-bold text-violet-700">{sessionAnalytics.weeklyHours}h</p>
+                            <p className="text-xs text-violet-500 mt-1">Therapy hours this week</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Clock className="w-4 h-4 text-blue-500" />
+                                <span className="text-xs font-medium text-blue-600">Avg Session</span>
+                            </div>
+                            <p className="text-2xl font-bold text-blue-700">{sessionAnalytics.avgSessionLength} min</p>
+                            <p className="text-xs text-blue-500 mt-1">Average session duration</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-5 border border-emerald-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Heart className="w-4 h-4 text-emerald-500" />
+                                <span className="text-xs font-medium text-emerald-600">Retention</span>
+                            </div>
+                            <p className="text-2xl font-bold text-emerald-700">{sessionAnalytics.patientRetention}%</p>
+                            <p className="text-xs text-emerald-500 mt-1">Patient return rate</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl p-5 border border-rose-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Target className="w-4 h-4 text-rose-500" />
+                                <span className="text-xs font-medium text-rose-600">Cancel Rate</span>
+                            </div>
+                            <p className="text-2xl font-bold text-rose-700">{sessionAnalytics.cancelRate}%</p>
+                            <p className="text-xs text-rose-500 mt-1">{sessionAnalytics.cancelRate < 10 ? 'Excellent!' : 'Room to improve'}</p>
+                        </div>
+                    </div>
+
+                    {/* Charts Section */}
+                    <div className="dashboard-card grid md:grid-cols-2 gap-6 mb-8">
+                        {/* Session Distribution */}
+                        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <PieChartIcon className="w-5 h-5 text-cyan-500" />
+                                    <h3 className="font-semibold text-gray-900">Session Status</h3>
+                                </div>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">All Time</span>
+                            </div>
+                            <div className="h-48">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={[
+                                                { name: 'Completed', value: stats.completedSessions, color: '#10b981' },
+                                                { name: 'Upcoming', value: stats.upcomingSessions, color: '#3b82f6' },
+                                            ].filter(d => d.value > 0)}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={45}
+                                            outerRadius={65}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {[
+                                                { name: 'Completed', value: stats.completedSessions, color: '#10b981' },
+                                                { name: 'Upcoming', value: stats.upcomingSessions, color: '#3b82f6' },
+                                            ].filter(d => d.value > 0).map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="flex justify-center gap-6 mt-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 bg-emerald-500 rounded-full" />
+                                    <span className="text-xs text-gray-600">Completed ({stats.completedSessions})</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 bg-blue-500 rounded-full" />
+                                    <span className="text-xs text-gray-600">Upcoming ({stats.upcomingSessions})</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Performance Overview */}
+                        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <BarChart3 className="w-5 h-5 text-violet-500" />
+                                    <h3 className="font-semibold text-gray-900">Performance</h3>
+                                </div>
+                            </div>
+                            <div className="h-48">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart
+                                        data={[
+                                            { name: 'Sessions', completed: stats.completedSessions, upcoming: stats.upcomingSessions },
+                                        ]}
+                                        layout="vertical"
+                                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                        <XAxis type="number" />
+                                        <YAxis type="category" dataKey="name" />
+                                        <Tooltip />
+                                        <Bar dataKey="completed" fill="#10b981" name="Completed" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="upcoming" fill="#3b82f6" name="Upcoming" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-gray-900">{stats.completedSessions + stats.upcomingSessions}</p>
+                                    <p className="text-xs text-gray-500">Total Sessions</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-gray-900">{stats.totalPatients}</p>
+                                    <p className="text-xs text-gray-500">Unique Patients</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -675,9 +851,14 @@ export default function TherapistDashboard() {
                         <div className="lg:col-span-2">
                             <div className="dashboard-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                                 <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-xl font-semibold text-gray-900">Today's Schedule</h2>
-                                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                                        <span className="w-2 h-2 bg-green-500 rounded-full" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                            <Calendar className="w-5 h-5 text-white" />
+                                        </div>
+                                        <h2 className="text-xl font-semibold text-gray-900">Today's Schedule</h2>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full">
+                                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                                         {completedToday}/{sessions.length} completed
                                     </div>
                                 </div>

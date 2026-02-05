@@ -407,6 +407,110 @@ export function getSeverityColor(severity: string): string {
     return colors[severity] || '#6b7280';
 }
 
+/**
+ * Get patient assessment summary for therapist preview
+ */
+export interface PatientAssessmentSummary {
+    patient_id: string;
+    patient_name: string;
+    assessments: AssessmentSubmission[];
+    latest_severity: string;
+    risk_level: 'low' | 'moderate' | 'high' | 'severe';
+    completed_count: number;
+}
+
+export async function getPatientAssessmentSummary(
+    patientId: string
+): Promise<{ data: PatientAssessmentSummary | null; error: Error | null }> {
+    try {
+        // Get patient info
+        const { data: patient, error: patientError } = await supabase
+            .from('users')
+            .select('id, full_name')
+            .eq('id', patientId)
+            .single();
+
+        if (patientError) {
+            return { data: null, error: new Error(patientError.message) };
+        }
+
+        // Get assessments
+        const assessments = await getUserAssessments(patientId);
+
+        // Calculate risk level
+        const riskLevel = calculateRiskLevel(assessments);
+        const latestSeverity = assessments[0]?.severity || 'None';
+
+        const summary: PatientAssessmentSummary = {
+            patient_id: patientId,
+            patient_name: patient.full_name,
+            assessments,
+            latest_severity: latestSeverity,
+            risk_level: riskLevel,
+            completed_count: assessments.length,
+        };
+
+        return { data: summary, error: null };
+    } catch (error) {
+        return { data: null, error: error as Error };
+    }
+}
+
+/**
+ * Calculate risk level based on assessment severities
+ */
+function calculateRiskLevel(assessments: AssessmentSubmission[]): 'low' | 'moderate' | 'high' | 'severe' {
+    if (assessments.length === 0) return 'low';
+
+    const severities = assessments.map(a => a.severity?.toLowerCase() || '');
+    
+    const severeKeywords = ['severe', 'critical', 'high risk', 'crisis'];
+    const highKeywords = ['moderate to severe', 'moderately severe', 'high'];
+    const moderateKeywords = ['moderate', 'mild to moderate'];
+
+    for (const severity of severities) {
+        if (severeKeywords.some(k => severity.includes(k))) return 'severe';
+    }
+    for (const severity of severities) {
+        if (highKeywords.some(k => severity.includes(k))) return 'high';
+    }
+    for (const severity of severities) {
+        if (moderateKeywords.some(k => severity.includes(k))) return 'moderate';
+    }
+
+    return 'low';
+}
+
+/**
+ * Get risk level badge color
+ */
+export function getRiskLevelColor(level: 'low' | 'moderate' | 'high' | 'severe'): string {
+    switch (level) {
+        case 'severe': return 'bg-red-100 text-red-700 border-red-300';
+        case 'high': return 'bg-orange-100 text-orange-700 border-orange-300';
+        case 'moderate': return 'bg-amber-100 text-amber-700 border-amber-300';
+        default: return 'bg-green-100 text-green-700 border-green-300';
+    }
+}
+
+/**
+ * Format assessment name for display
+ */
+export function formatAssessmentName(slug: string): string {
+    const names: Record<string, string> = {
+        'phq-9': 'PHQ-9 (Depression)',
+        'phq9': 'PHQ-9 (Depression)',
+        'gad-7': 'GAD-7 (Anxiety)',
+        'gad7': 'GAD-7 (Anxiety)',
+        'pss': 'PSS (Stress)',
+        'ptsd': 'PTSD Checklist',
+        'bfi': 'Big Five Inventory',
+        'dast': 'DAST (Drug Screening)',
+        'scoff': 'SCOFF (Eating Disorders)',
+    };
+    return names[slug] || slug.toUpperCase();
+}
+
 export default {
     fetchAssessments,
     getAssessmentBySlug,
@@ -415,5 +519,8 @@ export default {
     getUserAssessments,
     getLatestResult,
     generatePDFReport,
-    getSeverityColor
+    getSeverityColor,
+    getPatientAssessmentSummary,
+    getRiskLevelColor,
+    formatAssessmentName
 };

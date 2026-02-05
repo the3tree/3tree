@@ -53,18 +53,9 @@ const navigation = [
     children: [
       { name: "Assessments", href: "/assessments" },
       { name: "Downloadable Guides", href: "/guides" },
-      { name: "A To Z Topics", href: "/topics" },
     ],
   },
-  {
-    name: "Blogs",
-    href: "/blogs",
-    children: [
-      { name: "Mental Health A-Z", href: "/blogs/mental-health" },
-      { name: "Wellness Articles", href: "/blogs/wellness" },
-      { name: "Research & Statistics", href: "/blogs/research" },
-    ],
-  },
+  { name: "Blogs", href: "/topics" },
 ];
 
 export default function Header() {

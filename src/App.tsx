@@ -7,6 +7,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import Chatbot from "@/components/home/Chatbot";
 
 // Pages
 import Home from "./pages/Index";
@@ -164,6 +165,8 @@ const App = () => (
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              {/* Global Chatbot - Available on all pages */}
+              <Chatbot />
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>

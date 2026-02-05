@@ -5,12 +5,15 @@ import { JitsiMeeting } from "@jitsi/react-sdk";
 import {
     Loader2, AlertCircle, RotateCcw,
     Shield, CheckCircle2, FileText, X, Save,
-    ChevronDown, Lock, Clock, User, Video
+    ChevronDown, Lock, Clock, User, Video,
+    ClipboardList, Pill
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import PrescriptionModal from "@/components/booking/PrescriptionModal";
+import PatientAssessmentPreview from "@/components/booking/PatientAssessmentPreview";
 
 type ConnectionState = 'initializing' | 'loading' | 'ready' | 'connected' | 'failed' | 'ended';
 
@@ -24,7 +27,9 @@ interface SOAPNote {
 interface SessionInfo {
     id: string;
     booking_id?: string;
+    therapist_id?: string;
     therapist_name?: string;
+    patient_id?: string;
     patient_name?: string;
     scheduled_at?: string;
     service_type?: string;
@@ -73,6 +78,10 @@ export default function VideoCallRoom() {
     const [expandedSection, setExpandedSection] = useState<string>('subjective');
     const [saving, setSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+    // New modal states for prescription and assessments
+    const [showPrescription, setShowPrescription] = useState(false);
+    const [showAssessments, setShowAssessments] = useState(false);
 
     const mode = searchParams.get('mode') || 'video';
 
@@ -142,7 +151,9 @@ export default function VideoCallRoom() {
                     setSessionInfo({
                         id: roomId,
                         booking_id: booking.id,
+                        therapist_id: booking.therapist?.id,
                         therapist_name: booking.therapist?.user?.full_name || 'Therapist',
+                        patient_id: booking.patient?.id,
                         patient_name: booking.patient?.full_name || 'Patient',
                         scheduled_at: `${booking.scheduled_date} ${booking.scheduled_time}`,
                         service_type: booking.service_type || 'individual',
@@ -509,16 +520,38 @@ export default function VideoCallRoom() {
 
                         {/* Notes Button - Therapist Only */}
                         {sessionInfo?.is_therapist && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowNotes(!showNotes)}
-                                className={`text-white hover:bg-gray-700 ${showNotes ? 'bg-primary' : ''}`}
-                            >
-                                <FileText className="w-4 h-4 mr-2" />
-                                Notes
-                                {saving && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
-                            </Button>
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowAssessments(true)}
+                                    className="text-white hover:bg-gray-700"
+                                    title="View Patient Assessments"
+                                >
+                                    <ClipboardList className="w-4 h-4 mr-2" />
+                                    Assessments
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowPrescription(true)}
+                                    className="text-white hover:bg-gray-700"
+                                    title="Write Prescription"
+                                >
+                                    <Pill className="w-4 h-4 mr-2" />
+                                    Prescription
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowNotes(!showNotes)}
+                                    className={`text-white hover:bg-gray-700 ${showNotes ? 'bg-primary' : ''}`}
+                                >
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Notes
+                                    {saving && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
+                                </Button>
+                            </>
                         )}
 
                         {/* Security Badge */}
@@ -821,6 +854,29 @@ export default function VideoCallRoom() {
                     </div>
                 </footer>
             </div>
+
+            {/* Prescription Modal */}
+            {sessionInfo?.is_therapist && sessionInfo?.booking_id && (
+                <PrescriptionModal
+                    isOpen={showPrescription}
+                    onClose={() => setShowPrescription(false)}
+                    bookingId={sessionInfo.booking_id}
+                    therapistId={sessionInfo.therapist_id || ''}
+                    patientId={sessionInfo.patient_id || ''}
+                    patientName={sessionInfo.patient_name || 'Patient'}
+                    therapistName={sessionInfo.therapist_name || 'Therapist'}
+                />
+            )}
+
+            {/* Assessment Preview Modal */}
+            {sessionInfo?.is_therapist && sessionInfo?.patient_id && (
+                <PatientAssessmentPreview
+                    isOpen={showAssessments}
+                    onClose={() => setShowAssessments(false)}
+                    patientId={sessionInfo.patient_id}
+                    patientName={sessionInfo.patient_name || 'Patient'}
+                />
+            )}
         </>
     );
 }

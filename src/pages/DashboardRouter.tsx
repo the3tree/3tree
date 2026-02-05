@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 // Import all dashboard components
 import PatientDashboard from './dashboard/PatientDashboard';
-import TherapistDashboard from './dashboard/TherapistDashboard';
+import TherapistDashboard from './dashboard/TherapistDashboardNew';
 import AdminDashboard from './dashboard/AdminDashboard';
 import SuperAdminDashboard from './dashboard/SuperAdminDashboard';
 

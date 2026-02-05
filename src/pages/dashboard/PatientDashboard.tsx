@@ -1,8 +1,8 @@
 /**
- * PatientDashboard - Enhanced with real booking integration
+ * PatientDashboard - Enhanced with real booking integration and insights
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,7 +26,14 @@ import {
     ChevronRight,
     Copy,
     Key,
-    ExternalLink
+    ExternalLink,
+    TrendingUp,
+    Heart,
+    Brain,
+    Target,
+    Award,
+    Sparkles,
+    Activity
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -37,12 +44,34 @@ import {
     getBookingStats,
     type BookingDetails
 } from '@/lib/bookingService';
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    BarChart,
+    Bar
+} from 'recharts';
 
 const quickActions = [
-    { icon: Calendar, label: 'Book Session', href: '/booking', color: 'bg-slate-800' },
-    { icon: MessageCircle, label: 'Messages', href: '/messages', color: 'bg-slate-700' },
-    { icon: FileText, label: 'Assessments', href: '/assessments', color: 'bg-slate-600' },
-    { icon: BookOpen, label: 'Resources', href: '/guides', color: 'bg-slate-500' },
+    { icon: Calendar, label: 'Book Session', href: '/booking', color: 'bg-gradient-to-br from-cyan-500 to-blue-600', description: 'Schedule your next therapy session' },
+    { icon: MessageCircle, label: 'Messages', href: '/messages', color: 'bg-gradient-to-br from-violet-500 to-purple-600', description: 'Chat with your therapist' },
+    { icon: FileText, label: 'Assessments', href: '/assessments', color: 'bg-gradient-to-br from-amber-500 to-orange-600', description: 'Take wellness assessments' },
+    { icon: BookOpen, label: 'Resources', href: '/guides', color: 'bg-gradient-to-br from-emerald-500 to-green-600', description: 'Self-help guides & articles' },
+];
+
+// Wellness tips for patient dashboard
+const wellnessTips = [
+    { icon: Heart, tip: "Practice gratitude - Write 3 things you're grateful for today", color: "text-rose-500" },
+    { icon: Brain, tip: "Take a 5-minute mindfulness break between tasks", color: "text-violet-500" },
+    { icon: Target, tip: "Set one small, achievable goal for this week", color: "text-amber-500" },
+    { icon: Activity, tip: "Physical activity can boost your mood naturally", color: "text-emerald-500" },
 ];
 
 export default function PatientDashboard() {
@@ -193,12 +222,12 @@ export default function PatientDashboard() {
     return (
         <>
             <Helmet>
-                <title>Dashboard | 3-3.com Counseling</title>
+                <title>Patient Dashboard | The 3 Tree</title>
             </Helmet>
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
-                <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-                    <div className="container mx-auto px-4 lg:px-8 py-3 flex items-center justify-between">
+                <header className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
+                    <div className="container mx-auto px-4 lg:px-8 py-4 flex items-center justify-between">
                         <Link to="/" className="flex items-center gap-3">
                             <img
                                 src="/logo.png"
@@ -212,6 +241,9 @@ export default function PatientDashboard() {
                                 <span className="font-serif text-lg font-bold text-slate-800">The 3 Tree</span>
                                 <span className="text-[10px] text-slate-500 -mt-0.5">Mental Wellness</span>
                             </div>
+                            <span className="ml-2 text-xs font-medium px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full">
+                                Patient
+                            </span>
                         </Link>
                         <div className="flex items-center gap-4">
                             <button className="relative p-2 rounded-full hover:bg-gray-100 transition-colors">
@@ -278,16 +310,24 @@ export default function PatientDashboard() {
                 </header>
 
                 <div ref={containerRef} className="container mx-auto px-4 lg:px-8 py-8">
-                    {/* Welcome Section */}
-                    <div className="dashboard-card mb-8">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    {/* Welcome Section with Gradient */}
+                    <div className="dashboard-card mb-8 bg-gradient-to-r from-[#161A30] via-[#1e2440] to-[#2d3a54] rounded-3xl p-8 text-white relative overflow-hidden">
+                        {/* Decorative elements */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32" />
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-24 -translate-x-24" />
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
                             <div>
-                                <h1 className="text-3xl font-serif text-gray-900 mb-2">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Sparkles className="w-5 h-5 text-amber-400" />
+                                    <span className="text-sm text-white/70">Your Wellness Journey</span>
+                                </div>
+                                <h1 className="text-3xl font-serif mb-2">
                                     Welcome back, {user?.full_name?.split(' ')[0] || 'there'} 👋
                                 </h1>
-                                <p className="text-gray-500">Here's what's happening with your wellness journey.</p>
+                                <p className="text-white/70">Here's what's happening with your mental wellness journey today.</p>
                             </div>
-                            <Button asChild className="btn-icy sm:w-auto">
+                            <Button asChild className="bg-white text-[#161A30] hover:bg-white/90 sm:w-auto shadow-lg">
                                 <Link to="/booking" className="flex items-center gap-2">
                                     <Calendar className="w-4 h-4" />
                                     Book New Session
@@ -296,42 +336,131 @@ export default function PatientDashboard() {
                         </div>
                     </div>
 
-                    {/* Stats Cards */}
+                    {/* Stats Cards - Enhanced */}
                     <div className="dashboard-card grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div className="bg-slate-800 rounded-2xl p-5 text-white">
-                            <p className="text-slate-300 text-sm mb-1">Total Sessions</p>
+                        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 text-white relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
+                            <Calendar className="w-5 h-5 text-white/80 mb-2" />
+                            <p className="text-cyan-100 text-sm mb-1">Total Sessions</p>
                             <p className="text-3xl font-bold">{stats.total}</p>
+                            <p className="text-xs text-cyan-200 mt-1">All time</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-200">
+                        <div className="bg-white rounded-2xl p-5 border border-gray-200 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-50 rounded-full -translate-y-6 translate-x-6" />
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 mb-2" />
                             <p className="text-slate-500 text-sm mb-1">Completed</p>
-                            <p className="text-3xl font-bold text-slate-800">{stats.completed}</p>
+                            <p className="text-3xl font-bold text-emerald-600">{stats.completed}</p>
+                            <p className="text-xs text-emerald-500 mt-1 flex items-center gap-1">
+                                <TrendingUp className="w-3 h-3" />
+                                {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}% success
+                            </p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-200">
+                        <div className="bg-white rounded-2xl p-5 border border-gray-200 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-12 h-12 bg-blue-50 rounded-full -translate-y-6 translate-x-6" />
+                            <Clock className="w-5 h-5 text-blue-500 mb-2" />
                             <p className="text-slate-500 text-sm mb-1">Upcoming</p>
-                            <p className="text-3xl font-bold text-slate-600">{stats.upcoming}</p>
+                            <p className="text-3xl font-bold text-blue-600">{stats.upcoming}</p>
+                            <p className="text-xs text-blue-500 mt-1">Scheduled</p>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-gray-200">
+                        <div className="bg-white rounded-2xl p-5 border border-gray-200 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-12 h-12 bg-rose-50 rounded-full -translate-y-6 translate-x-6" />
+                            <X className="w-5 h-5 text-rose-400 mb-2" />
                             <p className="text-slate-500 text-sm mb-1">Cancelled</p>
-                            <p className="text-3xl font-bold text-slate-400">{stats.cancelled}</p>
+                            <p className="text-3xl font-bold text-rose-500">{stats.cancelled}</p>
+                            <p className="text-xs text-rose-400 mt-1">
+                                {stats.total > 0 ? Math.round((stats.cancelled / stats.total) * 100) : 0}% rate
+                            </p>
                         </div>
                     </div>
 
-                    {/* Quick Actions */}
+                    {/* Quick Actions - Enhanced */}
                     <div className="dashboard-card grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                         {quickActions.map((action) => (
                             <Link
                                 key={action.label}
                                 to={action.href}
-                                className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-lg transition-all group"
+                                className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
                             >
-                                <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center mb-4`}>
+                                <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
                                     <action.icon className="w-6 h-6 text-white" />
                                 </div>
                                 <p className="font-semibold text-gray-900 group-hover:text-cyan-600 transition-colors">
                                     {action.label}
                                 </p>
+                                <p className="text-xs text-gray-500 mt-1">{action.description}</p>
                             </Link>
                         ))}
+                    </div>
+
+                    {/* Wellness Insights Section */}
+                    <div className="dashboard-card grid md:grid-cols-2 gap-6 mb-8">
+                        {/* Session Progress Chart */}
+                        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-semibold text-gray-900">Session Overview</h3>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">All Time</span>
+                            </div>
+                            <div className="h-48">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={[
+                                                { name: 'Completed', value: stats.completed, color: '#10b981' },
+                                                { name: 'Upcoming', value: stats.upcoming, color: '#3b82f6' },
+                                                { name: 'Cancelled', value: stats.cancelled, color: '#f43f5e' },
+                                            ].filter(d => d.value > 0)}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={50}
+                                            outerRadius={70}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {[
+                                                { name: 'Completed', value: stats.completed, color: '#10b981' },
+                                                { name: 'Upcoming', value: stats.upcoming, color: '#3b82f6' },
+                                                { name: 'Cancelled', value: stats.cancelled, color: '#f43f5e' },
+                                            ].filter(d => d.value > 0).map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="flex justify-center gap-4 mt-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 bg-emerald-500 rounded-full" />
+                                    <span className="text-xs text-gray-600">Completed</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 bg-blue-500 rounded-full" />
+                                    <span className="text-xs text-gray-600">Upcoming</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 bg-rose-500 rounded-full" />
+                                    <span className="text-xs text-gray-600">Cancelled</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Daily Wellness Tip */}
+                        <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl p-6 border border-violet-100">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Sparkles className="w-5 h-5 text-violet-500" />
+                                <h3 className="font-semibold text-gray-900">Daily Wellness Tips</h3>
+                            </div>
+                            <div className="space-y-3">
+                                {wellnessTips.map((item, index) => (
+                                    <div key={index} className="flex items-start gap-3 bg-white/80 rounded-xl p-3">
+                                        <div className={`w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm`}>
+                                            <item.icon className={`w-4 h-4 ${item.color}`} />
+                                        </div>
+                                        <p className="text-sm text-gray-700 leading-relaxed">{item.tip}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="grid lg:grid-cols-3 gap-8">
@@ -339,7 +468,12 @@ export default function PatientDashboard() {
                         <div className="lg:col-span-2">
                             <div className="dashboard-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                                 <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-xl font-semibold text-gray-900">Upcoming Sessions</h2>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                            <Calendar className="w-5 h-5 text-white" />
+                                        </div>
+                                        <h2 className="text-xl font-semibold text-gray-900">Upcoming Sessions</h2>
+                                    </div>
                                     <button
                                         onClick={loadBookings}
                                         className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
@@ -584,33 +718,77 @@ export default function PatientDashboard() {
 
                         {/* Sidebar */}
                         <div className="space-y-6">
-                            {/* Progress Card */}
+                            {/* Wellness Score Card */}
+                            <div className="dashboard-card bg-gradient-to-br from-[#161A30] to-[#2d3a54] rounded-2xl p-6 text-white relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16" />
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Award className="w-5 h-5 text-amber-400" />
+                                    <h3 className="font-semibold">Wellness Score</h3>
+                                </div>
+                                <div className="flex items-end gap-2 mb-4">
+                                    <span className="text-5xl font-bold">
+                                        {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}
+                                    </span>
+                                    <span className="text-white/70 mb-2">/100</span>
+                                </div>
+                                <p className="text-white/70 text-sm">
+                                    {stats.completed >= 10 ? "Amazing progress! Keep it up! 🌟" :
+                                     stats.completed >= 5 ? "You're doing great! 💪" :
+                                     stats.completed >= 1 ? "Good start on your journey! 🌱" :
+                                     "Start your wellness journey today! ✨"}
+                                </p>
+                                <div className="mt-4 pt-4 border-t border-white/10">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-white/60">Consistency</span>
+                                        <span className="font-medium">
+                                            {stats.total > 0 ? Math.round((1 - stats.cancelled / stats.total) * 100) : 100}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Progress Card - Enhanced */}
                             <div className="dashboard-card bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                                <h3 className="font-semibold text-gray-900 mb-4">Your Progress</h3>
-                                <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <TrendingUp className="w-5 h-5 text-cyan-500" />
+                                    <h3 className="font-semibold text-gray-900">Your Progress</h3>
+                                </div>
+                                <div className="space-y-5">
                                     <div>
                                         <div className="flex justify-between text-sm mb-2">
                                             <span className="text-gray-600">Sessions Completed</span>
-                                            <span className="font-medium text-gray-900">{stats.completed}</span>
+                                            <span className="font-medium text-emerald-600">{stats.completed}/{stats.total}</span>
                                         </div>
-                                        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                        <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                                             <div
-                                                className="bg-slate-600 h-2 rounded-full transition-all duration-500"
+                                                className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-3 rounded-full transition-all duration-500"
                                                 style={{ width: `${Math.min((stats.completed / Math.max(stats.total, 1)) * 100, 100)}%` }}
                                             />
                                         </div>
                                     </div>
                                     <div>
                                         <div className="flex justify-between text-sm mb-2">
-                                            <span className="text-gray-600">Consistency Score</span>
-                                            <span className="font-medium text-gray-900">
+                                            <span className="text-gray-600">Attendance Rate</span>
+                                            <span className="font-medium text-blue-600">
                                                 {stats.total > 0 ? Math.round((1 - stats.cancelled / stats.total) * 100) : 100}%
                                             </span>
                                         </div>
-                                        <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                        <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                                             <div
-                                                className="bg-slate-500 h-2 rounded-full transition-all duration-500"
+                                                className="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-500"
                                                 style={{ width: `${stats.total > 0 ? Math.round((1 - stats.cancelled / stats.total) * 100) : 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-sm mb-2">
+                                            <span className="text-gray-600">Upcoming Sessions</span>
+                                            <span className="font-medium text-violet-600">{stats.upcoming}</span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                                            <div
+                                                className="bg-gradient-to-r from-violet-400 to-violet-600 h-3 rounded-full transition-all duration-500"
+                                                style={{ width: `${Math.min((stats.upcoming / 5) * 100, 100)}%` }}
                                             />
                                         </div>
                                     </div>
