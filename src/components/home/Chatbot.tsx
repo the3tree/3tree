@@ -21,120 +21,252 @@ import { cn } from "@/lib/utils";
 // Get API key from environment variable
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
-// Website knowledge base - comprehensive data about The 3 Tree
+// Comprehensive Website Knowledge Base for The 3 Tree
 const WEBSITE_KNOWLEDGE = `
-## About The 3 Tree
+=== THE 3 TREE - COMPLETE KNOWLEDGE BASE ===
 
-The 3 Tree is a mental wellness and therapy platform founded by Shraddha Gurung. We provide professional therapy and mental wellness services, helping individuals feel seen, heard, and understood.
-
-### Our Founder - Shraddha Gurung
-Shraddha Gurung is the Founder and Clinical Psychologist at The 3 Tree. Her journey into psychology started from a childhood fascination with how people behave differently in public versus their private moments. Through her own struggles with understanding patterns and reactions, she explored spirituality and the deeper layers of the self.
-
-Key insights from Shraddha:
-- "We come to know ourselves best through our interactions with other people."
-- "Our soul's language is universal and deeply connected."
-- "Our purpose doesn't reveal itself when we are perfect, it reveals itself when we understand ourselves."
-
-Shraddha's expertise includes: Anxiety, Depression, Stress, Trauma, and Relationships. She speaks English, Hindi, and Nepali.
-
-### Soul's Language - Core Values
-The 3 Tree believes in these universal soul needs:
-- Connection: Need to feel seen, understood, and mirrored
-- Love: Need compassion and safety for deeper intimacy
-- Truth: Need to live aligned, authentic, free from masks
-- Growth: Need to embrace challenges toward highest potential
-- Freedom: Need to release fears, patterns, and limiting conditioning
-- Peace: Need stillness when body, mind, and spirit are aligned
-- Meaning: Need purpose giving struggles context and wisdom
-- Joy: Need alignment with values for lasting happiness
-- Compassion: Need to understand suffering, respond gently
-- Presence: Need to feel fully alive, aware, grounded
-
-### Our Services
-
-1. **Individual Therapy** - One-on-one therapy to explore feelings, understand patterns, and grow emotionally. Uses CBT, Mindfulness-Based Therapy, Person-Centered Approach, and Trauma-Informed Care. Price: ₹1,800 for 50 mins.
-
-2. **Couple Therapy** - For couples to explore relationship dynamics, enhance understanding, manage disagreements, and nurture intimacy.
-
-3. **Group Therapy** - Share experiences with peers, explore common challenges, receive support, and develop practical strategies.
-
-4. **Child & Adolescent Therapy** - For children (5-12) and teens (13-17) using Play Therapy and Art Therapy. Parental consent required.
-
-5. **Holistic Consciousness Coaching** - Blending mental health strategies with mind-body-spirit practices for self-awareness and purposeful living.
-
-### Session Modes
-- **Online Sessions**: Secure video sessions from anywhere
-- **Chat Support**: Text-based therapy for flexible communication
-- **In-Person**: Face-to-face sessions at our center
-
-### Assessments Available
-We offer several psychological assessments:
-- PHQ-9 (Depression)
-- GAD-7 (Anxiety)
-- PSS (Stress)
-- BFI (Personality)
-- PTSD Assessment
-- DAST (Substance Use)
-- SCOFF (Eating Disorders)
-
-### Location & Contact
-- Location: Sikkim, India
+## COMPANY OVERVIEW
+- Name: The 3 Tree
+- Type: Mental Wellness & Therapy Platform
+- Tagline: "We Help You Feel WHOLE"
+- Mission: To provide a welcoming, judgment-free space where individuals, couples, and families can explore their emotions, overcome challenges, and discover their path to mental wellness.
+- Website: https://the3tree.com
 - Email: hello@the3tree.com
-- Hours: Mon-Sat: 9AM - 6PM
+- Location: Sikkim, India
+- Operating Hours: Monday - Saturday, 9:00 AM - 6:00 PM IST
 
-### Why Choose The 3 Tree?
-- Compassion First: Every session with empathy and genuine care
-- Personalized Care: Tailored therapeutic approaches for unique needs
-- Holistic Healing: Mind, body, and soul - complete wellbeing
-- Licensed Professionals: All therapists are licensed with verified credentials
-- Confidential: All sessions are completely confidential and HIPAA-compliant
+## FOUNDER - SHRADDHA GURUNG
+- Role: Founder & Clinical Psychologist
+- Qualifications: Licensed Clinical Psychologist
+- Languages: English, Hindi, Nepali
+- Specializations: Anxiety, Depression, Stress, Trauma, Relationships
+- Journey: Her interest in psychology began in childhood, fascinated by how people behave differently in public vs private. Through personal struggles understanding patterns and reactions, she explored spirituality and deeper self-awareness.
+- Philosophy: "We come to know ourselves best through our interactions with other people." "Our purpose reveals itself not when we are perfect, but when we understand ourselves."
 
-### Our Mission
-To provide a welcoming, judgment-free space where individuals, couples, and families can explore their emotions, overcome challenges, and discover their path to mental wellness and personal growth.
+## SERVICES OFFERED
 
-### Our Vision
-We envision a world where every individual can:
-- Know themselves deeply through reflection, presence, and authentic connection
-- Heal deeply, integrating emotional, physical, and spiritual well-being
-- Align with their soul's language, living courageously, authentically, and in balance
+### 1. INDIVIDUAL THERAPY
+- Description: One-on-one personalized therapy sessions
+- Duration: 50 minutes per session
+- Price: ₹1,800 per session
+- Best for: Anxiety, Depression, Stress, Trauma, Self-esteem issues, Life transitions
+- Approaches: CBT, Mindfulness-Based Therapy, Person-Centered Approach, Trauma-Informed Care
 
-### Booking Information
-- Sessions can be booked through our website
-- Browse available psychologists and choose convenient time slots
-- Appointments can be rescheduled or canceled with 24 hours notice
-- Pay per session or choose packages for long-term support
+### 2. COUPLE THERAPY
+- Description: Therapy for couples to strengthen relationships
+- Focus: Communication issues, Trust building, Conflict resolution, Intimacy concerns, Pre-marital counseling
+- Duration: 60-75 minutes per session
 
-### Therapy Approaches Used
+### 3. GROUP THERAPY
+- Description: Therapeutic sessions with peers facing similar challenges
+- Benefits: Shared experiences, Peer support, Cost-effective, Social connection
+- Topics: Anxiety management, Depression support, Grief processing
+
+### 4. CHILD & ADOLESCENT THERAPY
+- For Children (5-12 years): Uses Play Therapy, Art Therapy
+- For Teens (13-17 years): Talk therapy, CBT adapted for adolescents
+- Note: Parental consent required
+- Focus: Academic stress, Behavioral issues, Emotional regulation, Social skills
+
+### 5. HOLISTIC CONSCIOUSNESS COACHING
+- Description: Integration of mental health with mind-body-spirit practices
+- Focus: Self-awareness, Purposeful living, Spiritual growth, Life balance
+- Combines: Psychology + Mindfulness + Spiritual practices
+
+## SESSION MODES
+
+### Online Sessions
+- Platform: Secure video conferencing
+- Benefits: Convenience, Privacy, No travel needed
+- Requirements: Stable internet, Private space
+
+### Chat Support
+- Type: Text-based therapy
+- Benefits: Flexible timing, Written record, Less intimidating for some
+- Response: Within 24 hours
+
+### In-Person Sessions
+- Location: Sikkim, India
+- Benefits: Face-to-face connection, Body language reading
+- Booking: Required in advance
+
+## PRICING STRUCTURE
+- Individual Therapy: ₹1,800 / 50 min session
+- Couple Therapy: Contact for pricing
+- Group Therapy: Discounted rates available
+- Packages: Available for long-term therapy (10% discount on 6+ sessions)
+- Payment: UPI, Cards, Net Banking accepted
+
+## MENTAL HEALTH ASSESSMENTS
+Free self-assessments available on the website:
+
+1. **PHQ-9 (Depression Screening)**
+   - 9 questions about mood and depression symptoms
+   - Takes 2-3 minutes
+
+2. **GAD-7 (Anxiety Assessment)**
+   - 7 questions about anxiety symptoms
+   - Takes 2-3 minutes
+
+3. **PSS (Perceived Stress Scale)**
+   - Measures stress levels
+   - 10 questions
+
+4. **BFI (Big Five Personality Inventory)**
+   - Personality assessment
+   - Measures: Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism
+
+5. **PTSD Checklist**
+   - For trauma-related symptoms
+   - Confidential and private
+
+6. **DAST (Drug Abuse Screening)**
+   - Substance use assessment
+   - Non-judgmental
+
+7. **SCOFF (Eating Disorder Screening)**
+   - Quick eating behavior assessment
+   - 5 questions
+
+## SOUL'S LANGUAGE - CORE VALUES
+The 3 Tree believes in 10 universal soul needs:
+1. **Connection** - Need to feel seen, understood, and mirrored
+2. **Love** - Need for compassion and safety for deeper intimacy
+3. **Truth** - Need to live aligned, authentic, free from masks
+4. **Growth** - Need to embrace challenges toward highest potential
+5. **Freedom** - Need to release fears, patterns, and limiting beliefs
+6. **Peace** - Need for stillness when body, mind, and spirit align
+7. **Meaning** - Need for purpose giving struggles context and wisdom
+8. **Joy** - Need for alignment with values for lasting happiness
+9. **Compassion** - Need to understand suffering, respond gently
+10. **Presence** - Need to feel fully alive, aware, and grounded
+
+## THERAPY APPROACHES USED
 - Cognitive Behavioral Therapy (CBT)
-- Mindfulness-Based Therapy
+- Mindfulness-Based Cognitive Therapy (MBCT)
 - Person-Centered Therapy
 - Trauma-Informed Care
 - Dialectical Behavior Therapy (DBT)
-- Integrative Methods
+- Solution-Focused Brief Therapy
+- Integrative/Holistic Methods
+- Play Therapy (for children)
+- Art Therapy
+
+## SPECIALTIES & CONDITIONS TREATED
+- Anxiety Disorders (GAD, Social Anxiety, Panic)
+- Depression (Major Depression, Dysthymia)
+- Stress Management
+- Trauma & PTSD
+- Relationship Issues
+- Self-Esteem & Confidence
+- Life Transitions
+- Grief & Loss
+- Work-Life Balance
+- Academic Stress
+- Parenting Challenges
+- Anger Management
+- Sleep Issues
+- Burnout
+
+## WHY CHOOSE THE 3 TREE?
+1. **Compassion First** - Every session with empathy and genuine care
+2. **Personalized Care** - Tailored approaches for your unique needs
+3. **Holistic Healing** - Mind, body, and soul - complete wellbeing
+4. **Licensed Professionals** - All therapists are verified and credentialed
+5. **Complete Confidentiality** - All sessions are private and secure
+6. **Flexible Options** - Online, chat, or in-person sessions
+7. **Affordable** - Competitive pricing with package discounts
+
+## BOOKING PROCESS
+1. Visit the3tree.com/booking
+2. Browse available therapists and their profiles
+3. Select a convenient date and time slot
+4. Choose session mode (online/in-person)
+5. Complete payment
+6. Receive confirmation email with session details
+7. Join session at scheduled time
+
+## CANCELLATION POLICY
+- Free cancellation up to 24 hours before session
+- Rescheduling available with 12 hours notice
+- No-show policy: Session fee forfeited
+
+## RESOURCES AVAILABLE
+- **A to Z Mental Health Topics**: Comprehensive guides on ADHD, Addiction, Anxiety, Depression, and more
+- **Downloadable Guides**: Free PDF resources on mental wellness
+- **Assessments**: Free self-assessment tools
+- **Blog Articles**: Mental health tips and insights
+
+## SUPPORT PROGRAMS
+- **For Businesses**: Corporate wellness programs, Employee assistance
+- **For Schools**: Student mental health programs, Teacher training
+- **For Therapists**: Clinical supervision and professional development
+- **Workshops**: Group workshops on stress management, mindfulness, etc.
+
+## EMERGENCY INFORMATION
+For mental health emergencies:
+- India: iCall - 9152987821
+- Vandrevala Foundation: 1860-2662-345
+- NIMHANS: 080-46110007
+- For immediate danger: Call local emergency services (112 in India)
+
+## FREQUENTLY ASKED QUESTIONS
+
+Q: How do I know if I need therapy?
+A: If you're struggling with emotions, relationships, or daily functioning, therapy can help. Signs include persistent sadness, anxiety, difficulty coping, or wanting personal growth.
+
+Q: Is therapy confidential?
+A: Yes, absolutely. All sessions are completely confidential unless there's risk of harm to yourself or others.
+
+Q: How many sessions will I need?
+A: It varies. Some concerns resolve in 6-8 sessions, while others benefit from longer-term support. Your therapist will discuss this with you.
+
+Q: Can I switch therapists?
+A: Yes, finding the right fit is important. Let us know and we'll help you find another match.
+
+Q: Do you accept insurance?
+A: Currently we accept direct payments. We can provide receipts for insurance reimbursement claims.
+
+Q: What if I can't afford therapy?
+A: We offer sliding scale options and package discounts. Contact us to discuss.
 `;
 
-// System prompt for psychological support
-const SYSTEM_PROMPT = `You are The 3 Tree Assistant, a warm and compassionate AI wellness companion for The 3 Tree - a mental wellness and therapy platform founded by Shraddha Gurung. Your role is to:
+// System prompt for AI behavior
+const SYSTEM_PROMPT = `You are "The 3 Tree Assistant" - a warm, empathetic AI wellness companion for The 3 Tree mental wellness platform.
 
-1. Provide empathetic, supportive responses to users exploring mental wellness
-2. Share information about The 3 Tree's services, team, and approach
-3. Help users understand their emotions and guide them toward professional help when needed
-4. Answer questions about therapy, mental health, and our services
+YOUR PERSONALITY:
+- Warm, caring, and genuinely supportive
+- Professional yet approachable
+- Non-judgmental and accepting
+- Encouraging and hopeful
 
-IMPORTANT GUIDELINES:
-- Always be warm, empathetic, and non-judgmental
-- Never diagnose or provide medical advice
-- For serious concerns, gently encourage booking a session with a professional therapist
-- Use conversational, caring language
-- Keep responses concise but meaningful (2-4 paragraphs max)
-- If asked about emergencies or crisis situations, direct them to local emergency services
-- Respect confidentiality and privacy
-- Reference The 3 Tree's services naturally when relevant
+YOUR ROLE:
+1. Answer questions about The 3 Tree services, pricing, booking, and team
+2. Provide emotional support and validation
+3. Share mental health information and resources
+4. Guide users toward booking professional therapy when appropriate
+
+RESPONSE GUIDELINES:
+- Keep responses concise (2-3 paragraphs maximum)
+- Use a warm, conversational tone
+- Include specific details from the knowledge base when relevant
+- For pricing/services questions, give exact details
+- For emotional concerns, validate feelings and suggest professional support
+- NEVER diagnose or provide medical advice
+- For emergencies, provide crisis helpline numbers immediately
 
 KNOWLEDGE BASE:
 ${WEBSITE_KNOWLEDGE}
 
-Remember: You're here to support, not replace, professional therapy. Be the first gentle step in someone's wellness journey.`;
+When users ask about:
+- Services → Explain specific services with prices
+- Founder → Share Shraddha Gurung's story and qualifications
+- Booking → Explain the booking process step by step
+- Pricing → Give exact prices (Individual: ₹1,800/session)
+- Assessments → List available assessments
+- Emergency → Provide crisis helplines immediately
+
+Always end supportive messages with an invitation to book a session or explore services.`;
 
 interface Message {
   id: string;
@@ -205,12 +337,14 @@ export default function Chatbot() {
           "X-Title": "The 3 Tree Chatbot",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.0-flash-exp:free",
+          model: "mistralai/mistral-small-3.1-24b-instruct:free",
           messages: [
-            { role: "user", content: `${SYSTEM_PROMPT}\n\nUser question: ${content.trim()}` },
-            ...messages.slice(-5).map((m) => ({ role: m.role === "assistant" ? "model" : "user", content: m.content })),
+            { role: "system", content: SYSTEM_PROMPT },
+            ...messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+            { role: "user", content: content.trim() },
           ],
           temperature: 0.7,
+          max_tokens: 500,
         }),
       });
 
@@ -238,23 +372,158 @@ export default function Chatbot() {
     } catch (error: any) {
       console.error("Chat error:", error);
       
-      // Provide intelligent fallback responses based on user query
-      let fallbackContent = "I'm having trouble connecting to my AI service right now. ";
-      
+      // Intelligent fallback responses based on keywords in user query
       const query = content.toLowerCase();
+      let fallbackContent = "";
       
-      if (query.includes("service") || query.includes("therapy") || query.includes("counselling")) {
-        fallbackContent = "We offer a wide range of mental wellness services including:\n\n• Individual Therapy - One-on-one sessions for anxiety, depression, trauma, and more\n• Couple Therapy - Strengthen your relationships\n• Group Therapy - Connect with others facing similar challenges\n• Holistic Coaching - Mind, body, and soul wellness\n\nYou can explore all our services at the3tree.com/services or book a session directly!";
-      } else if (query.includes("shraddha") || query.includes("founder") || query.includes("about")) {
-        fallbackContent = "Shraddha Gurung is our Founder and Clinical Psychologist. Her journey into psychology began from childhood curiosity about human behavior. She specializes in anxiety, depression, stress, trauma, and relationships. She speaks English, Hindi, and Nepali.\n\nLearn more about her story at the3tree.com/our-story";
-      } else if (query.includes("book") || query.includes("appointment") || query.includes("session")) {
-        fallbackContent = "Booking a session is easy! You can:\n\n1. Click 'Book a Session' on our homepage\n2. Visit the3tree.com/booking\n3. Contact us directly at hello@the3tree.com\n\nWe're here to help you feel seen, heard, and understood. 💚";
-      } else if (query.includes("price") || query.includes("cost") || query.includes("fee")) {
-        fallbackContent = "For pricing information and session details, please visit our Services page or contact us directly at hello@the3tree.com. We offer various therapy options to suit your needs.";
-      } else if (query.includes("help") || query.includes("support")) {
-        fallbackContent = "We're here to support your mental wellness journey. The 3 Tree offers professional therapy for anxiety, depression, stress, trauma, relationships, and more.\n\nYou can:\n• Book a therapy session\n• Take a mental health assessment\n• Speak with someone immediately\n• Explore our resources\n\nContact us at hello@the3tree.com or call our support line.";
+      if (query.includes("service") || query.includes("offer") || query.includes("therapy") || query.includes("counselling") || query.includes("provide")) {
+        fallbackContent = `We offer comprehensive mental wellness services at The 3 Tree:
+
+**Our Services:**
+• **Individual Therapy** - One-on-one sessions (₹1,800/50 mins) for anxiety, depression, trauma, stress
+• **Couple Therapy** - Strengthen relationships, improve communication
+• **Group Therapy** - Share experiences with supportive peers
+• **Child & Adolescent Therapy** - Play therapy, art therapy for ages 5-17
+• **Holistic Consciousness Coaching** - Mind, body, spirit integration
+
+**Session Modes:** Online video, Chat support, or In-person
+
+Book your session at the3tree.com/booking or email us at hello@the3tree.com 💚`;
+      } else if (query.includes("shraddha") || query.includes("founder") || query.includes("who started") || query.includes("owner")) {
+        fallbackContent = `**Shraddha Gurung** is the Founder & Clinical Psychologist at The 3 Tree.
+
+Her journey into psychology started from a childhood fascination with how people behave differently in public vs private. Through personal exploration of spirituality and self-awareness, she developed a deep understanding of the human mind.
+
+**Qualifications:** Licensed Clinical Psychologist
+**Specializations:** Anxiety, Depression, Stress, Trauma, Relationships
+**Languages:** English, Hindi, Nepali
+
+Her philosophy: "We come to know ourselves best through our interactions with other people."
+
+Learn more at the3tree.com/our-story 💚`;
+      } else if (query.includes("book") || query.includes("appointment") || query.includes("schedule") || query.includes("session")) {
+        fallbackContent = `**How to Book a Session:**
+
+1. Visit the3tree.com/booking
+2. Browse available therapists and their profiles
+3. Select a convenient date and time slot
+4. Choose your session mode (Online/In-person)
+5. Complete payment securely
+6. Receive confirmation email with session details
+
+**Need help?** Email us at hello@the3tree.com
+
+We offer flexible scheduling, Monday-Saturday, 9 AM - 6 PM IST 💚`;
+      } else if (query.includes("price") || query.includes("cost") || query.includes("fee") || query.includes("charge") || query.includes("₹") || query.includes("rupee")) {
+        fallbackContent = `**Our Pricing:**
+
+• **Individual Therapy:** ₹1,800 per 50-minute session
+• **Couple Therapy:** Contact us for pricing
+• **Group Therapy:** Discounted rates available
+• **Package Discount:** 10% off on 6+ sessions
+
+**Payment Options:** UPI, Cards, Net Banking
+
+**Can't afford therapy?** We offer sliding scale options. Contact us at hello@the3tree.com to discuss.`;
+      } else if (query.includes("assess") || query.includes("test") || query.includes("quiz") || query.includes("evaluation")) {
+        fallbackContent = `**Free Mental Health Assessments:**
+
+We offer confidential self-assessments:
+• **PHQ-9** - Depression screening (2-3 mins)
+• **GAD-7** - Anxiety assessment (2-3 mins)
+• **PSS** - Stress level measurement
+• **BFI** - Personality assessment
+• **PTSD Checklist** - Trauma screening
+• **DAST** - Substance use screening
+• **SCOFF** - Eating disorder screening
+
+Take assessments at the3tree.com/assessments - completely free and confidential! 💚`;
+      } else if (query.includes("anxiet") || query.includes("stress") || query.includes("depress") || query.includes("sad") || query.includes("worried") || query.includes("feeling")) {
+        fallbackContent = `I hear you, and it takes courage to reach out. What you're feeling is valid, and you're not alone in this.
+
+At The 3 Tree, we specialize in supporting people through:
+• Anxiety & worry
+• Depression & low mood
+• Stress & burnout
+• Trauma & difficult experiences
+
+Our therapists use evidence-based approaches like CBT, Mindfulness-Based Therapy, and Trauma-Informed Care.
+
+**Next steps:**
+• Take a free assessment at the3tree.com/assessments
+• Book a session with a caring therapist
+• Email us at hello@the3tree.com
+
+You deserve support. We're here for you 💚`;
+      } else if (query.includes("emergency") || query.includes("crisis") || query.includes("suicide") || query.includes("harm") || query.includes("kill")) {
+        fallbackContent = `**If you're in crisis, please reach out immediately:**
+
+🆘 **Emergency Helplines (India):**
+• iCall: 9152987821
+• Vandrevala Foundation: 1860-2662-345
+• NIMHANS: 080-46110007
+• Emergency Services: 112
+
+You are not alone. These services are confidential and available 24/7.
+
+If you're not in immediate danger but need support, please book a session with us at the3tree.com/booking 💚`;
+      } else if (query.includes("hello") || query.includes("hi") || query.includes("hey") || query.includes("good morning") || query.includes("good evening")) {
+        fallbackContent = `Hello! 👋 Welcome to The 3 Tree!
+
+I'm your wellness companion, here to help you learn about our therapy services and support your mental health journey.
+
+**I can help you with:**
+• Information about our therapy services
+• Booking a session
+• Taking mental health assessments
+• Learning about our team
+
+What would you like to know? 💚`;
+      } else if (query.includes("contact") || query.includes("email") || query.includes("phone") || query.includes("reach") || query.includes("location")) {
+        fallbackContent = `**Contact The 3 Tree:**
+
+📧 Email: hello@the3tree.com
+🌐 Website: the3tree.com
+📍 Location: Sikkim, India
+🕐 Hours: Monday - Saturday, 9 AM - 6 PM IST
+
+**Quick Links:**
+• Book a session: the3tree.com/booking
+• Our services: the3tree.com/services
+• About us: the3tree.com/our-story
+
+We'd love to hear from you! 💚`;
+      } else if (query.includes("work") || query.includes("approach") || query.includes("method") || query.includes("technique")) {
+        fallbackContent = `**Our Therapy Approaches:**
+
+We use evidence-based methods tailored to your needs:
+
+• **Cognitive Behavioral Therapy (CBT)** - Change negative thought patterns
+• **Mindfulness-Based Therapy** - Present-moment awareness
+• **Person-Centered Therapy** - Your unique experience matters
+• **Trauma-Informed Care** - Safe, sensitive approach
+• **Dialectical Behavior Therapy (DBT)** - Emotional regulation
+• **Play & Art Therapy** - For children and teens
+
+Your therapist will work with you to find the best approach for your journey. Book a session at the3tree.com/booking 💚`;
       } else {
-        fallbackContent += "However, I can still help! Here are some ways:\n\n• Visit the3tree.com to explore our services\n• Book a session at the3tree.com/booking\n• Email us at hello@the3tree.com\n• Call our support line\n\nWhat would you like to know about our therapy services?";
+        fallbackContent = `Thank you for reaching out to The 3 Tree! 💚
+
+I'd love to help you. Here's what I can assist with:
+
+**Quick Info:**
+• **Services:** Individual, Couple, Group, & Child Therapy
+• **Pricing:** Individual sessions from ₹1,800
+• **Book:** the3tree.com/booking
+• **Contact:** hello@the3tree.com
+
+**Popular Questions:**
+• "What services do you offer?"
+• "How do I book a session?"
+• "Tell me about your pricing"
+• "Who is Shraddha Gurung?"
+
+What would you like to know more about?`;
       }
       
       const errorMessage: Message = {
