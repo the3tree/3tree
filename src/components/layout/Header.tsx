@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, ChevronDown, ChevronRight, User, LogOut, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,7 +37,7 @@ const navigation = [
       { name: "Counselling Modes", href: "/counselling-modes" },
       {
         name: "Support We Offer",
-        href: "/support",
+        href: "/services",
         children: [
           { name: "Supervision For Therapists", href: "/supervision-therapists" },
           { name: "Support For Businesses", href: "/support-businesses" },
@@ -56,12 +56,14 @@ const navigation = [
     ],
   },
   { name: "Blogs", href: "/topics" },
+  { name: "Shop", href: "/shop" },
 ];
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const headerRef = useRef<HTMLElement>(null);
   const { user, signOut, loading } = useAuth();
 
@@ -128,7 +130,7 @@ export default function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className={`text-base font-medium gap-1 hover:text-primary hover:bg-primary/5 transition-all ${isActive(item.href) ? "text-primary" : "text-gray-700"
+                    className={`text-base font-medium gap-1 hover:text-primary hover:bg-primary/10 data-[state=open]:bg-primary/10 data-[state=open]:text-primary transition-all ${isActive(item.href) ? "text-primary" : "text-gray-700"
                       }`}
                   >
                     {item.name}
@@ -143,7 +145,13 @@ export default function Header() {
                   {item.children.map((child) =>
                     child.children ? (
                       <DropdownMenuSub key={child.name}>
-                        <DropdownMenuSubTrigger className="flex items-center justify-between w-full p-3 text-sm font-medium rounded-xl hover:bg-primary/5 hover:text-primary cursor-pointer">
+                        <DropdownMenuSubTrigger
+                          className="flex items-center justify-between w-full p-3 text-sm font-medium rounded-xl hover:bg-primary/10 hover:text-primary cursor-pointer data-[state=open]:bg-primary/10 data-[state=open]:text-primary"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            navigate(child.href);
+                          }}
+                        >
                           {child.name}
                           <ChevronRight className="h-4 w-4 text-gray-400" />
                         </DropdownMenuSubTrigger>
@@ -152,7 +160,7 @@ export default function Header() {
                             <DropdownMenuItem key={subChild.name} asChild className="p-0 mb-1">
                               <Link
                                 to={subChild.href}
-                                className={`block p-3 text-sm font-medium rounded-xl hover:bg-primary/5 transition-colors hover:text-primary ${isActive(subChild.href) ? "text-primary bg-primary/5" : "text-gray-600"
+                                className={`block p-3 text-sm font-medium rounded-xl hover:bg-primary/10 transition-colors hover:text-primary ${isActive(subChild.href) ? "text-primary bg-primary/10" : "text-gray-600"
                                   }`}
                               >
                                 {subChild.name}
@@ -210,6 +218,10 @@ export default function Header() {
                         src={user.avatar_url}
                         alt={user.full_name || 'User'}
                         className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = '/logo.png';
+                        }}
                       />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#161A30] to-[#2d3a54] flex items-center justify-center text-white font-medium text-sm">

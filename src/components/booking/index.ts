@@ -11,3 +11,8 @@ export { default as BookingCalendar, BookingCalendarSkeleton } from './BookingCa
 export { default as TimeSlotPicker, TimeSlotPickerSkeleton } from './TimeSlotPicker';
 export { default as BookingConfirmation } from './BookingConfirmation';
 export { default as BookingSuccess } from './BookingSuccess';
+export { ConsentFormStep } from './ConsentFormStep';
+export { ServiceMultiSelect } from './ServiceMultiSelect';
+export { ConsentContent } from './ConsentContent';
+export { ConsentAgreement } from './ConsentAgreement';
+export { ConsentActions } from './ConsentActions';

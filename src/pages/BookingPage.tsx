@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Search, Filter, X, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Filter, X, AlertCircle, Check } from 'lucide-react';
 import { gsap } from 'gsap';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import {
     BookingConfirmation,
     BookingSuccess
 } from '@/components/booking';
+import { ConsentFormStep } from '@/components/booking/ConsentFormStep';
 
 // Therapist Filter
 import TherapistFilter, { applyTherapistFilters, defaultFilters } from '@/components/booking/TherapistFilter';
@@ -72,12 +73,21 @@ import {
     type ServiceQuestionnaire as ServiceQuestionnaireType,
 } from '@/lib/services/serviceQuestionnaireService';
 
+// Consent Service
+import {
+    getUserConsent,
+    needsConsentUpdate,
+    CONSENT_VERSION,
+    type ConsentSubmission,
+} from '@/lib/services/consentService';
+
 // Razorpay Payment
 import { openPaymentModal, type RazorpayPaymentResult } from '@/lib/services/razorpayService';
 
-// Steps configuration - now includes Questionnaire step
+// Steps configuration - Service first, then Consent with terms
 const STEPS = [
-    { number: 1, label: 'Service' },
+    { number: 0, label: 'Service' },
+    { number: 1, label: 'Consent' },
     { number: 2, label: 'Questionnaire' },
     { number: 3, label: 'Therapist' },
     { number: 4, label: 'Date' },
@@ -112,11 +122,15 @@ export default function BookingPage() {
     const { toast } = useToast();
 
     // State
-    const [currentStep, setCurrentStep] = useState(1);
+    const [currentStep, setCurrentStep] = useState(0);
     const [selectedService, setSelectedService] = useState<string | null>(null);
     const [selectedTherapist, setSelectedTherapist] = useState<string | null>(therapistId || null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+    // Consent state
+    const [consentCompleted, setConsentCompleted] = useState(false);
+    const [consentData, setConsentData] = useState<ConsentSubmission | null>(null);
 
     // Questionnaire state
     const [currentQuestionnaire, setCurrentQuestionnaire] = useState<ServiceQuestionnaireType | null>(null);
@@ -250,26 +264,61 @@ export default function BookingPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Auto-select service from URL parameter and skip to step 2
+    // Check existing consent on mount
+    useEffect(() => {
+        async function checkConsent() {
+            if (!user?.id) {
+                setCurrentStep(0);
+                return;
+            }
+
+            try {
+                const needsUpdate = await needsConsentUpdate(user.id, CONSENT_VERSION);
+
+                if (!needsUpdate) {
+                    const existingConsent = await getUserConsent(user.id);
+                    if (existingConsent) {
+                        setConsentCompleted(true);
+                        setConsentData({
+                            user_id: existingConsent.user_id,
+                            consent_version: existingConsent.consent_version,
+                            selected_services: existingConsent.selected_services,
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not check consent status, will show consent step:', err);
+            }
+            // Always start at step 0 (service selection)
+            setCurrentStep(0);
+        }
+
+        checkConsent();
+    }, [user]);
+
+    // Auto-select service from URL parameter
     useEffect(() => {
         const serviceParam = searchParams.get('service');
         if (serviceParam && !selectedService) {
-            // Validate that the service exists
             const validService = serviceTypes.find(s => s.id === serviceParam);
             if (validService) {
                 setSelectedService(serviceParam);
-                // Skip step 1 (service selection) and go to step 2 (questionnaire)
-                setCurrentStep(2);
+                // If consent is already completed, skip to questionnaire (step 2)
+                if (consentCompleted && currentStep < 2) {
+                    setCurrentStep(2);
+                } else if (!consentCompleted && currentStep < 1) {
+                    setCurrentStep(1); // Go to consent
+                }
             }
         }
-    }, [searchParams, selectedService]);
+    }, [searchParams, selectedService, consentCompleted, currentStep]);
 
     // Load questionnaire when service is selected
     useEffect(() => {
         if (selectedService) {
             const questionnaire = getQuestionnaireForService(selectedService);
             setCurrentQuestionnaire(questionnaire);
-            
+
             // Check if user has already completed questionnaire for this service
             if (user?.id && questionnaire) {
                 hasCompletedQuestionnaire(user.id, selectedService).then(completed => {
@@ -282,6 +331,20 @@ export default function BookingPage() {
             setQuestionnaireData(null);
         }
     }, [selectedService, user?.id]);
+
+    // Auto-advance logic removed to fix back button navigation
+    // useEffect(() => {
+    //     if (selectedService && consentCompleted && currentStep < 2) {
+    //         setCurrentStep(2);
+    //     }
+    // }, [selectedService, consentCompleted, currentStep]);
+
+    // Auto-advance logic removed to fix back button navigation
+    // useEffect(() => {
+    //     if (questionnaireCompleted && currentStep < 3) {
+    //         setCurrentStep(3);
+    //     }
+    // }, [questionnaireCompleted, currentStep]);
 
     // Load available dates when therapist is selected
     useEffect(() => {
@@ -499,12 +562,13 @@ export default function BookingPage() {
         };
     }, [selectedTherapist, selectedDate, selectedSlotIso, user?.id, toast]);
 
-    // Navigation functions - updated for 6-step flow
+    // Navigation functions - updated for 7-step flow (Service → Consent → Questionnaire → ...)
     const goToStep = (step: number) => {
-        if (step < 1 || step > 6) return;
+        if (step < 0 || step > 6) return;
 
-        // Validate navigation (updated for new step order)
-        if (step >= 2 && !selectedService) return;
+        // Validate navigation
+        if (step >= 1 && !selectedService) return;
+        if (step >= 2 && !consentCompleted) return;
         if (step >= 3 && !questionnaireCompleted && currentQuestionnaire) return;
         if (step >= 4 && !selectedTherapist) return;
         if (step >= 5 && !selectedDate) return;
@@ -520,17 +584,22 @@ export default function BookingPage() {
     };
 
     const goBack = () => {
-        if (currentStep > 1) {
+        if (currentStep > 0) {
             setCurrentStep(currentStep - 1);
         }
     };
 
-    // Handle questionnaire completion
+    // Handle consent completion
+    const handleConsentComplete = (submission: ConsentSubmission) => {
+        setConsentCompleted(true);
+        setConsentData(submission);
+        goNext(); // Move to step 2 (questionnaire)
+    };
     const handleQuestionnaireComplete = async (data: Record<string, unknown>) => {
         if (!user?.id || !selectedService || !currentQuestionnaire) return;
 
         setQuestionnaireData(data);
-        
+
         // Save questionnaire submission
         const result = await saveQuestionnaireSubmission(
             user.id,
@@ -666,20 +735,20 @@ export default function BookingPage() {
         //         }
         //     );
         // } else {
-            // Direct booking without payment (FREE or SKIPPED payment)
-            setSubmitting(true);
-            try {
-                await completeBooking();
-            } catch (error) {
-                console.error('Booking failed:', error);
-                toast({
-                    title: 'Booking Failed',
-                    description: error instanceof Error ? error.message : 'Please try again.',
-                    variant: 'destructive'
-                });
-            } finally {
-                setSubmitting(false);
-            }
+        // Direct booking without payment (FREE or SKIPPED payment)
+        setSubmitting(true);
+        try {
+            await completeBooking();
+        } catch (error) {
+            console.error('Booking failed:', error);
+            toast({
+                title: 'Booking Failed',
+                description: error instanceof Error ? error.message : 'Please try again.',
+                variant: 'destructive'
+            });
+        } finally {
+            setSubmitting(false);
+        }
         // }
     };
 
@@ -687,7 +756,7 @@ export default function BookingPage() {
     const filteredTherapists = applyTherapistFilters(therapists, therapistFilters, searchQuery);
 
     // Count active filters
-    const activeFilterCount = 
+    const activeFilterCount =
         therapistFilters.specializations.length +
         therapistFilters.languages.length +
         therapistFilters.serviceTypes.length +
@@ -696,10 +765,11 @@ export default function BookingPage() {
         (therapistFilters.onlineOnly ? 1 : 0) +
         (therapistFilters.nextAvailable ? 1 : 0);
 
-    // Check if can proceed to next step (updated for 6-step flow)
+    // Check if can proceed to next step (Service → Consent → Questionnaire → ...)
     const canProceed = (): boolean => {
         switch (currentStep) {
-            case 1: return !!selectedService;
+            case 0: return !!selectedService;
+            case 1: return consentCompleted;
             case 2: return questionnaireCompleted || !currentQuestionnaire;
             case 3: return !!selectedTherapist;
             case 4: return !!selectedDate;
@@ -759,33 +829,110 @@ export default function BookingPage() {
 
                         {/* Step Content */}
                         <div ref={contentRef} className="max-w-4xl mx-auto">
-                            {/* Step 1: Select Service */}
-                            {currentStep === 1 && (
-                                <div className="max-w-2xl mx-auto">
-                                    <div className="text-center mb-8">
+                            {/* Step 0: Select Service */}
+                            {currentStep === 0 && (
+                                <div className="max-w-3xl mx-auto">
+                                    <div className="text-center mb-10">
                                         <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                                            Select a Service
+                                            What type of support are you looking for?
                                         </h2>
                                         <p className="text-gray-500">
-                                            Choose the type of therapy session that best fits your needs
+                                            Choose the service that best fits your needs
                                         </p>
                                     </div>
 
-                                    <ServiceSelector
-                                        services={serviceTypes}
-                                        selectedService={selectedService}
-                                        onSelect={setSelectedService}
-                                    />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        {serviceTypes.map((service) => {
+                                            const isSelected = selectedService === service.id;
+                                            return (
+                                                <button
+                                                    key={service.id}
+                                                    onClick={() => setSelectedService(service.id)}
+                                                    className={`service-card relative text-left p-6 rounded-2xl border-2 transition-all duration-300 group ${isSelected
+                                                        ? 'border-cyan-500 bg-gradient-to-br from-cyan-50 to-blue-50 shadow-lg shadow-cyan-100/50 ring-1 ring-cyan-200'
+                                                        : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-md'
+                                                        }`}
+                                                >
+                                                    {/* Selection check */}
+                                                    <div className={`absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center transition-all ${isSelected ? 'bg-cyan-500 shadow-md' : 'bg-gray-100 group-hover:bg-gray-200'
+                                                        }`}>
+                                                        {isSelected ? (
+                                                            <Check className="w-4 h-4 text-white" />
+                                                        ) : (
+                                                            <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+                                                        )}
+                                                    </div>
 
-                                    <div className="flex justify-end mt-8">
+                                                    <h3 className={`font-semibold text-lg mb-1.5 pr-8 ${isSelected ? 'text-cyan-700' : 'text-gray-900'
+                                                        }`}>
+                                                        {service.name}
+                                                    </h3>
+                                                    <p className="text-gray-500 text-sm leading-relaxed mb-4">
+                                                        {service.description}
+                                                    </p>
+                                                    <div className="flex items-center gap-4 text-xs text-gray-400">
+                                                        <span className="flex items-center gap-1">
+                                                            ⏱ {service.duration} min
+                                                        </span>
+                                                        {service.price > 0 ? (
+                                                            <span className="font-medium text-gray-600">
+                                                                ₹{service.price.toLocaleString('en-IN')}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="font-medium text-green-600">Free</span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="flex justify-end mt-10">
                                         <Button
                                             onClick={goNext}
                                             disabled={!selectedService}
-                                            className="btn-icy px-8"
+                                            className="btn-icy px-10 py-3 text-base"
                                         >
                                             Continue
                                             <ChevronRight className="w-4 h-4 ml-1" />
                                         </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 1: Consent Form */}
+                            {currentStep === 1 && user && (
+                                <ConsentFormStep
+                                    onComplete={handleConsentComplete}
+                                    onSkip={goBack}
+                                    userId={user.id}
+                                    selectedBookingService={selectedService}
+                                />
+                            )}
+
+                            {/* Step 1: Login Required */}
+                            {currentStep === 1 && !user && (
+                                <div className="max-w-2xl mx-auto text-center py-12">
+                                    <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-6">
+                                        <AlertCircle className="w-8 h-8 text-blue-600" />
+                                    </div>
+                                    <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                                        Login Required
+                                    </h2>
+                                    <p className="text-gray-500 mb-8">
+                                        Please log in to review and accept the informed consent before booking your session.
+                                    </p>
+                                    <div className="flex justify-center gap-4">
+                                        <Link to="/login?redirect=/booking">
+                                            <Button className="btn-icy px-8">
+                                                Log In
+                                            </Button>
+                                        </Link>
+                                        <Link to="/signup?redirect=/booking">
+                                            <Button variant="outline" className="px-8">
+                                                Sign Up
+                                            </Button>
+                                        </Link>
                                     </div>
                                 </div>
                             )}
@@ -812,7 +959,7 @@ export default function BookingPage() {
                                         {questionnaireCompleted ? 'Questionnaire Completed' : 'No Questionnaire Required'}
                                     </h2>
                                     <p className="text-gray-500 mb-8">
-                                        {questionnaireCompleted 
+                                        {questionnaireCompleted
                                             ? 'Thank you for completing the intake questionnaire. Let\'s proceed to select your therapist.'
                                             : 'This service doesn\'t require an intake questionnaire. Let\'s proceed to select your therapist.'
                                         }

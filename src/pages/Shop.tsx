@@ -214,10 +214,10 @@ export default function Shop() {
                             </p>
 
                             {/* Trust Badges */}
-                            <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
+                                    <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
                                 <div className="flex items-center gap-2">
                                     <Truck className="w-4 h-4" />
-                                    Free shipping over $50
+                                    Free shipping over ₹2,000
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Shield className="w-4 h-4" />
@@ -310,11 +310,11 @@ export default function Shop() {
                                                 <div className="flex items-center justify-between">
                                                     <div>
                                                         <span className="text-lg font-semibold text-gray-900">
-                                                            ${product.price}
+                                                            ₹{product.price.toLocaleString('en-IN')}
                                                         </span>
                                                         {product.originalPrice && (
                                                             <span className="text-sm text-gray-400 line-through ml-2">
-                                                                ${product.originalPrice}
+                                                                ₹{product.originalPrice.toLocaleString('en-IN')}
                                                             </span>
                                                         )}
                                                     </div>
@@ -378,10 +378,10 @@ export default function Shop() {
                                         </div>
                                         <div className={`flex items-center justify-between mt-3 ${viewMode === 'list' ? 'mt-auto' : ''}`}>
                                             <div>
-                                                <span className="font-semibold text-gray-900">${product.price}</span>
+                                                <span className="font-semibold text-gray-900">₹{product.price.toLocaleString('en-IN')}</span>
                                                 {product.originalPrice && (
                                                     <span className="text-xs text-gray-400 line-through ml-1">
-                                                        ${product.originalPrice}
+                                                        ₹{product.originalPrice.toLocaleString('en-IN')}
                                                     </span>
                                                 )}
                                             </div>

@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Search, Send, Phone, Video, MoreVertical, ArrowLeft, Paperclip, Image, Smile, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import {
     getUserConversations,
@@ -24,6 +25,7 @@ export default function MessagesPage() {
     const { conversationId } = useParams();
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
+    const { toast } = useToast();
 
     const [conversations, setConversations] = useState<ConversationWithParticipant[]>([]);
     const [messages, setMessages] = useState<MessageWithSender[]>([]);

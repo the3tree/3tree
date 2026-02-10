@@ -6,14 +6,17 @@ import {
     Loader2, AlertCircle, RotateCcw,
     Shield, CheckCircle2, FileText, X, Save,
     ChevronDown, Lock, Clock, User, Video,
-    ClipboardList, Pill
-} from "lucide-react";
+    ClipboardList, Pill, Download, Eye, Info,
+    Copy, Check, Upload, LogOut, ExternalLink
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import PrescriptionModal from "@/components/booking/PrescriptionModal";
 import PatientAssessmentPreview from "@/components/booking/PatientAssessmentPreview";
+import { createSessionNote, getSessionNoteByBooking, updateSessionNote } from "@/lib/services/sessionNotesService";
+import { downloadSessionNotesPDF, viewSessionNotesPDF, saveSessionNotesPDFToImageKit } from "@/lib/services/sessionNotesPdfService";
 
 type ConnectionState = 'initializing' | 'loading' | 'ready' | 'connected' | 'failed' | 'ended';
 
@@ -22,6 +25,7 @@ interface SOAPNote {
     objective: string;
     assessment: string;
     plan: string;
+    patient_name?: string;
 }
 
 interface SessionInfo {
@@ -56,7 +60,7 @@ export default function VideoCallRoom() {
     const { roomId } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { user, loading: authLoading, profile } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const jitsiApiRef = useRef<any>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -78,10 +82,16 @@ export default function VideoCallRoom() {
     const [expandedSection, setExpandedSection] = useState<string>('subjective');
     const [saving, setSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    const [editablePatientName, setEditablePatientName] = useState<string>('');
 
     // New modal states for prescription and assessments
     const [showPrescription, setShowPrescription] = useState(false);
     const [showAssessments, setShowAssessments] = useState(false);
+    const [showMeetingInfo, setShowMeetingInfo] = useState(false);
+    const [copiedField, setCopiedField] = useState<string | null>(null);
+    const [sessionNoteId, setSessionNoteId] = useState<string | null>(null);
+    const [savingPdf, setSavingPdf] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
     const mode = searchParams.get('mode') || 'video';
 
@@ -103,7 +113,7 @@ export default function VideoCallRoom() {
                 setPermissionsGranted(true);
             }
         };
-        
+
         checkPermissions();
     }, [mode]);
 
@@ -122,68 +132,206 @@ export default function VideoCallRoom() {
             try {
                 setConnectionState('initializing');
 
-                // Get booking by video_room_id
-                const { data: booking, error: bookingError } = await supabase
-                    .from('bookings')
-                    .select(`
-                        id,
-                        scheduled_date,
-                        scheduled_time,
-                        service_type,
-                        duration_minutes,
-                        notes_therapist,
-                        status,
-                        user_id,
-                        therapist_id,
-                        patient:users!bookings_user_id_fkey(id, full_name),
-                        therapist:therapists!bookings_therapist_id_fkey(
-                            id,
-                            user:users!therapists_user_id_fkey(id, full_name)
-                        )
-                    `)
-                    .eq('video_room_id', roomId)
-                    .single();
+                // Try finding booking by ID first, then by room_id
+                let booking: any = null;
+
+                // Try multiple query approaches - FK constraint names may vary
+                const queryVariants = [
+                    // Approach 1: With explicit FK constraint names - Corrected for patient_id
+                    `id, scheduled_at, service_type, duration_minutes, notes_therapist, status, session_mode, patient_id, therapist_id, room_id, meeting_link,
+                     patient:users!bookings_patient_id_fkey(id, full_name),
+                     therapist:therapists!bookings_therapist_id_fkey(id, user:users!therapists_user_id_fkey(id, full_name))`,
+                    // Approach 2: Without FK names (auto-detect)
+                    `id, scheduled_at, service_type, duration_minutes, notes_therapist, status, session_mode, patient_id, therapist_id, room_id, meeting_link,
+                     patient:users!patient_id(id, full_name),
+                     therapist:therapists!therapist_id(id, user:users!user_id(id, full_name))`,
+                    // Approach 3: Minimal - just flat columns
+                    `id, scheduled_at, service_type, duration_minutes, notes_therapist, status, session_mode, patient_id, therapist_id, room_id, meeting_link`,
+                ];
+
+                for (const queryStr of queryVariants) {
+                    if (booking) break;
+
+                    // Try by booking ID first (dashboard navigates with /call/{bookingId})
+                    const { data: byId } = await supabase
+                        .from('bookings')
+                        .select(queryStr)
+                        .eq('id', roomId)
+                        .maybeSingle();
+
+                    if (byId) {
+                        booking = byId;
+                        break;
+                    }
+
+                    // Try by room_id
+                    const { data: byRoom } = await supabase
+                        .from('bookings')
+                        .select(queryStr)
+                        .eq('room_id', roomId)
+                        .maybeSingle();
+
+                    if (byRoom) {
+                        booking = byRoom;
+                        break;
+                    }
+                }
 
                 if (booking) {
-                    const therapistUserId = booking.therapist?.user?.id;
-                    const isTherapist = therapistUserId === user.id;
+                    // Determine is_therapist with multiple strategies
+                    let isTherapist = false;
+                    let therapistName = 'Therapist';
+                    let patientName = 'Patient';
+                    let therapistRecordId = booking.therapist?.id || booking.therapist_id;
+
+                    // Strategy 1: Check nested join result
+                    if (booking.therapist?.user?.id) {
+                        isTherapist = booking.therapist.user.id === user.id;
+                        therapistName = booking.therapist.user.full_name || 'Therapist';
+                    }
+
+                    // Strategy 2: If nested join didn't resolve, look up therapist directly
+                    if (!isTherapist && booking.therapist_id) {
+                        const { data: therapistRow } = await supabase
+                            .from('therapists')
+                            .select('id, user_id, users!therapists_user_id_fkey(full_name)')
+                            .eq('id', booking.therapist_id)
+                            .maybeSingle();
+
+                        if (therapistRow) {
+                            therapistRecordId = therapistRow.id;
+                            if (therapistRow.user_id === user.id) {
+                                isTherapist = true;
+                            }
+                            // Try to get the name from the join
+                            const joinedUser = (therapistRow as any).users;
+                            if (joinedUser?.full_name) {
+                                therapistName = joinedUser.full_name;
+                            }
+                        } else {
+                            // Try without FK name
+                            const { data: therapistRow2 } = await supabase
+                                .from('therapists')
+                                .select('id, user_id')
+                                .eq('id', booking.therapist_id)
+                                .maybeSingle();
+                            if (therapistRow2) {
+                                therapistRecordId = therapistRow2.id;
+                                if (therapistRow2.user_id === user.id) {
+                                    isTherapist = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // Strategy 3: Check user role from auth context
+                    if (!isTherapist && user.role === 'therapist') {
+                        // Double-check: does this user have a therapist record linked to this booking?
+                        const { data: myTherapistRecord } = await supabase
+                            .from('therapists')
+                            .select('id')
+                            .eq('user_id', user.id)
+                            .maybeSingle();
+                        if (myTherapistRecord && myTherapistRecord.id === booking.therapist_id) {
+                            isTherapist = true;
+                            therapistRecordId = myTherapistRecord.id;
+                        }
+                    }
+
+                    // Get client name
+                    if (booking.patient?.full_name) {
+                        patientName = booking.patient.full_name;
+                    } else if (booking.patient_id) {
+                        const { data: clientUser } = await supabase
+                            .from('users')
+                            .select('full_name')
+                            .eq('id', booking.patient_id)
+                            .maybeSingle();
+                        if (clientUser?.full_name) {
+                            patientName = clientUser.full_name;
+                        }
+                    }
+
+                    console.log('Session loaded:', { isTherapist, therapistRecordId, userId: user.id, role: user.role });
 
                     setSessionInfo({
                         id: roomId,
                         booking_id: booking.id,
-                        therapist_id: booking.therapist?.id,
-                        therapist_name: booking.therapist?.user?.full_name || 'Therapist',
-                        patient_id: booking.patient?.id,
-                        patient_name: booking.patient?.full_name || 'Patient',
-                        scheduled_at: `${booking.scheduled_date} ${booking.scheduled_time}`,
+                        therapist_id: therapistRecordId,
+                        therapist_name: therapistName,
+                        patient_id: booking.patient?.id || booking.patient_id,
+                        patient_name: patientName,
+                        scheduled_at: booking.scheduled_at || '',
                         service_type: booking.service_type || 'individual',
                         duration_minutes: booking.duration_minutes || 50,
                         is_therapist: isTherapist,
                         notes_therapist: booking.notes_therapist
                     });
 
-                    // Load existing notes if therapist
+                    // Initial name set from booking/user
+                    let currentPatientName = patientName;
+
                     if (isTherapist && booking.notes_therapist) {
                         try {
                             const parsed = JSON.parse(booking.notes_therapist);
+                            // Handling SOAP JSON
                             if (parsed.subjective !== undefined) {
                                 setSoapNotes(parsed);
                                 setNotesMode('soap');
-                            } else {
+                                if (parsed.patient_name) currentPatientName = parsed.patient_name;
+                            }
+                            // Handling wrapped Simple JSON (new format)
+                            else if (parsed.simple_content !== undefined) {
+                                setSimpleNotes(parsed.simple_content);
+                                setNotesMode('simple');
+                                if (parsed.patient_name) currentPatientName = parsed.patient_name;
+                            }
+                            // Handling legacy simple text that happens to be valid JSON (unlikely but possible)
+                            else {
                                 setSimpleNotes(booking.notes_therapist);
                                 setNotesMode('simple');
                             }
                         } catch {
+                            // Plain text (legacy simple notes)
                             setSimpleNotes(booking.notes_therapist);
                             setNotesMode('simple');
                         }
                     }
+
+                    // Set the editable name to what we found (either from notes or default)
+                    setEditablePatientName(currentPatientName);
+
+                    // Update session info if name changed from notes
+                    if (currentPatientName !== patientName) {
+                        setSessionInfo(prev => prev ? { ...prev, patient_name: currentPatientName } : null);
+                    }
+
+                    // Also load from session_notes table
+                    if (isTherapist) {
+                        try {
+                            const { data: existingNote } = await getSessionNoteByBooking(booking.id);
+                            if (existingNote) {
+                                setSessionNoteId(existingNote.id);
+                                if (existingNote.subjective || existingNote.objective || existingNote.assessment || existingNote.plan) {
+                                    setSoapNotes({
+                                        subjective: existingNote.subjective || '',
+                                        objective: existingNote.objective || '',
+                                        assessment: existingNote.assessment || '',
+                                        plan: existingNote.plan || '',
+                                    });
+                                    setNotesMode('soap');
+                                }
+                            }
+                        } catch (noteErr) {
+                            console.warn('Could not load session notes (table may not exist yet):', noteErr);
+                        }
+                    }
                 } else {
-                    // Fallback: Generic session without booking
-                    console.warn('No booking found for room:', roomId, bookingError);
+                    // Fallback: No booking found - use user role
+                    console.warn('No booking found for room:', roomId);
                     setSessionInfo({
                         id: roomId,
-                        is_therapist: profile?.role === 'therapist'
+                        is_therapist: user.role === 'therapist'
                     });
                 }
 
@@ -192,14 +340,14 @@ export default function VideoCallRoom() {
                 console.error('Failed to load session:', err);
                 setSessionInfo({
                     id: roomId,
-                    is_therapist: profile?.role === 'therapist'
+                    is_therapist: user.role === 'therapist'
                 });
                 setConnectionState('loading');
             }
         };
 
         loadSession();
-    }, [roomId, user, profile]);
+    }, [roomId, user]);
 
     // Call duration timer
     useEffect(() => {
@@ -242,22 +390,64 @@ export default function VideoCallRoom() {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // Save notes to database
+    // Save notes to database (bookings + session_notes table)
     const saveNotes = async (isAutoSave = false) => {
-        if (!sessionInfo?.booking_id) return;
+        if (!sessionInfo?.booking_id) {
+            if (!isAutoSave) {
+                toast({
+                    title: 'Cannot Save',
+                    description: 'No active booking found for this session.',
+                    variant: 'destructive'
+                });
+            }
+            return;
+        }
 
         try {
             setSaving(true);
             const notesContent = notesMode === 'soap'
-                ? JSON.stringify(soapNotes)
-                : simpleNotes;
+                ? JSON.stringify({ ...soapNotes, patient_name: editablePatientName })
+                : JSON.stringify({ simple_content: simpleNotes, patient_name: editablePatientName });
 
+            // Save to bookings table
             const { error } = await supabase
                 .from('bookings')
                 .update({ notes_therapist: notesContent })
                 .eq('id', sessionInfo.booking_id);
 
             if (error) throw error;
+
+            // Also save to session_notes table for structured storage
+            if (sessionInfo.therapist_id && sessionInfo.patient_id) {
+                try {
+                    if (sessionNoteId) {
+                        // Update existing session note
+                        await updateSessionNote(sessionNoteId, {
+                            subjective: notesMode === 'soap' ? soapNotes.subjective : '',
+                            objective: notesMode === 'soap' ? soapNotes.objective : '',
+                            assessment: notesMode === 'soap' ? soapNotes.assessment : '',
+                            plan: notesMode === 'soap' ? soapNotes.plan : '',
+                            progress_notes: notesMode === 'simple' ? simpleNotes : undefined,
+                        });
+                    } else {
+                        // Create new session note - pass therapist record ID
+                        const { data: newNote } = await createSessionNote(sessionInfo.therapist_id, {
+                            booking_id: sessionInfo.booking_id,
+                            patient_id: sessionInfo.patient_id,
+                            subjective: notesMode === 'soap' ? soapNotes.subjective : '',
+                            objective: notesMode === 'soap' ? soapNotes.objective : '',
+                            assessment: notesMode === 'soap' ? soapNotes.assessment : '',
+                            plan: notesMode === 'soap' ? soapNotes.plan : '',
+                            progress_notes: notesMode === 'simple' ? simpleNotes : undefined,
+                        });
+                        if (newNote) {
+                            setSessionNoteId(newNote.id);
+                        }
+                    }
+                } catch (noteErr) {
+                    console.warn('Session notes table save failed (non-critical):', noteErr);
+                }
+            }
 
             setLastSaved(new Date());
 
@@ -278,6 +468,99 @@ export default function VideoCallRoom() {
             }
         } finally {
             setSaving(false);
+        }
+    };
+
+    // Copy text to clipboard
+    const copyToClipboard = async (text: string, field: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedField(field);
+            setTimeout(() => setCopiedField(null), 2000);
+        } catch {
+            // Fallback
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            setCopiedField(field);
+            setTimeout(() => setCopiedField(null), 2000);
+        }
+    };
+
+    // Download notes as PDF
+    const handleDownloadPDF = () => {
+        if (!sessionInfo) return;
+        downloadSessionNotesPDF({
+            patientName: sessionInfo.patient_name || 'Patient',
+            therapistName: sessionInfo.therapist_name || 'Therapist',
+            sessionDate: sessionInfo.scheduled_at || new Date().toISOString(),
+            serviceType: sessionInfo.service_type || 'individual',
+            durationMinutes: sessionInfo.duration_minutes || 50,
+            noteType: notesMode,
+            soapNotes: notesMode === 'soap' ? soapNotes : undefined,
+            simpleNotes: notesMode === 'simple' ? simpleNotes : undefined,
+        });
+        toast({
+            title: '📄 PDF Downloaded',
+            description: 'Session notes PDF has been downloaded.'
+        });
+    };
+
+    // View notes as PDF in new tab
+    const handleViewPDF = () => {
+        if (!sessionInfo) return;
+        viewSessionNotesPDF({
+            patientName: sessionInfo.patient_name || 'Patient',
+            therapistName: sessionInfo.therapist_name || 'Therapist',
+            sessionDate: sessionInfo.scheduled_at || new Date().toISOString(),
+            serviceType: sessionInfo.service_type || 'individual',
+            durationMinutes: sessionInfo.duration_minutes || 50,
+            noteType: notesMode,
+            soapNotes: notesMode === 'soap' ? soapNotes : undefined,
+            simpleNotes: notesMode === 'simple' ? simpleNotes : undefined,
+        });
+    };
+
+    // Save PDF to ImageKit
+    const handleSavePDFToCloud = async () => {
+        if (!sessionInfo?.booking_id) return;
+        setSavingPdf(true);
+        try {
+            const { url, error } = await saveSessionNotesPDFToImageKit(
+                {
+                    patientName: sessionInfo.patient_name || 'Patient',
+                    therapistName: sessionInfo.therapist_name || 'Therapist',
+                    sessionDate: sessionInfo.scheduled_at || new Date().toISOString(),
+                    serviceType: sessionInfo.service_type || 'individual',
+                    durationMinutes: sessionInfo.duration_minutes || 50,
+                    noteType: notesMode,
+                    soapNotes: notesMode === 'soap' ? soapNotes : undefined,
+                    simpleNotes: notesMode === 'simple' ? simpleNotes : undefined,
+                },
+                sessionInfo.booking_id,
+                sessionNoteId || undefined
+            );
+
+            if (error) throw error;
+            if (url) {
+                setPdfUrl(url);
+                toast({
+                    title: '☁️ PDF Saved to Cloud',
+                    description: 'PDF has been securely uploaded and saved.'
+                });
+            }
+        } catch (err) {
+            console.error('PDF cloud save error:', err);
+            toast({
+                title: 'Cloud Save Info',
+                description: 'PDF could not be uploaded to cloud. You can still download it locally.',
+                variant: 'destructive'
+            });
+        } finally {
+            setSavingPdf(false);
         }
     };
 
@@ -330,24 +613,24 @@ export default function VideoCallRoom() {
         // Handle connection errors
         api.addListener('errorOccurred', (event: any) => {
             console.error('Jitsi error:', event);
-            
+
             // Handle specific error types
             const errorName = event.error?.name || '';
-            
+
             // Members-only error - room requires auth (don't auto-reload, causes loops)
             if (errorName === 'conference.connectionError.membersOnly') {
                 console.warn('Room is members-only, but continuing anyway');
                 // Don't reload - it causes infinite loops
                 return;
             }
-            
+
             // Ignore harmless auth prompts and non-fatal errors
             if (errorName === 'conference.authenticationRequired' ||
                 errorName.includes('password') ||
                 !event.error?.isFatal) {
                 return;
             }
-            
+
             // Only handle truly fatal errors that prevent joining
             if (event.error?.isFatal && !hasJoinedRef.current) {
                 console.error('Fatal Jitsi error:', errorName);
@@ -359,15 +642,15 @@ export default function VideoCallRoom() {
         // Only handle leave if user actually joined
         api.addListener('videoConferenceLeft', async () => {
             console.log('videoConferenceLeft fired, hasJoined:', hasJoinedRef.current);
-            
+
             // Only process if user actually joined the conference
             if (!hasJoinedRef.current) {
                 console.log('Ignoring videoConferenceLeft - user never joined');
                 return;
             }
-            
+
             if (connectionState === 'ended') return;
-            
+
             setConnectionState('ended');
             // Save notes before leaving
             if (sessionInfo?.is_therapist && sessionInfo?.booking_id) {
@@ -398,7 +681,7 @@ export default function VideoCallRoom() {
 
     // Get display name
     const getDisplayName = () => {
-        if (profile?.full_name) return profile.full_name;
+        if (user?.full_name) return user.full_name;
         if (user?.email) return user.email.split('@')[0];
         return 'Participant';
     };
@@ -407,7 +690,7 @@ export default function VideoCallRoom() {
     const getSafeRoomName = useCallback(() => {
         // Return cached room name if already generated
         if (roomNameRef.current) return roomNameRef.current;
-        
+
         if (!roomId) {
             roomNameRef.current = `the3tree-session-${Date.now()}`;
         } else {
@@ -486,22 +769,31 @@ export default function VideoCallRoom() {
                 <title>Video Session | The 3 Tree Counseling</title>
             </Helmet>
 
-            <div className="min-h-screen bg-gray-900 flex flex-col">
+            <div className="min-h-screen bg-gray-900 flex flex-col relative">
                 {/* Session Info Header */}
-                <header className="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 px-4 py-3 flex items-center justify-between z-20">
+                <header className="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 px-4 py-3 flex items-center justify-between z-20 relative">
                     <div className="flex items-center gap-4">
                         <div className={`w-3 h-3 rounded-full ${connectionState === 'connected' ? 'bg-green-500 animate-pulse' :
-                                connectionState === 'ready' ? 'bg-yellow-500' :
-                                    'bg-gray-500'
+                            connectionState === 'ready' ? 'bg-yellow-500' :
+                                'bg-gray-500'
                             }`} />
 
                         <div>
                             <p className="font-medium text-white text-sm flex items-center gap-2">
                                 <User className="w-4 h-4 text-gray-400" />
-                                {sessionInfo?.is_therapist
-                                    ? sessionInfo?.patient_name || 'Patient'
-                                    : sessionInfo?.therapist_name || 'Therapist'
-                                }
+                                {sessionInfo?.is_therapist ? (
+                                    <input
+                                        type="text"
+                                        value={editablePatientName}
+                                        onChange={(e) => {
+                                            setEditablePatientName(e.target.value);
+                                            setSessionInfo(prev => prev ? { ...prev, patient_name: e.target.value } : null);
+                                        }}
+                                        className="bg-transparent border-b border-gray-500 focus:border-primary focus:outline-none px-1 py-0.5 min-w-[150px]"
+                                    />
+                                ) : (
+                                    sessionInfo?.therapist_name || 'Therapist'
+                                )}
                             </p>
                             <p className="text-xs text-gray-400 capitalize">
                                 {sessionInfo?.service_type?.replace(/_/g, ' ') || 'Session'} • {sessionInfo?.duration_minutes || 50}min
@@ -518,10 +810,22 @@ export default function VideoCallRoom() {
                             </div>
                         )}
 
+                        {/* Meeting Info Button */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowMeetingInfo(!showMeetingInfo)}
+                            className={`text-white hover:bg-gray-700 ${showMeetingInfo ? 'bg-gray-700' : ''}`}
+                            title="Meeting Info"
+                        >
+                            <Info className="w-4 h-4 mr-2" />
+                            Meeting Info
+                        </Button>
+
                         {/* Notes Button - Therapist Only */}
                         {sessionInfo?.is_therapist && (
                             <>
-                                <Button
+                                {/* <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setShowAssessments(true)}
@@ -540,7 +844,7 @@ export default function VideoCallRoom() {
                                 >
                                     <Pill className="w-4 h-4 mr-2" />
                                     Prescription
-                                </Button>
+                                </Button> */}
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -554,6 +858,21 @@ export default function VideoCallRoom() {
                             </>
                         )}
 
+                        {/* Exit Button */}
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                                if (window.confirm('Are you sure you want to leave the session?')) {
+                                    navigate('/dashboard');
+                                }
+                            }}
+                            className="bg-red-500 hover:bg-red-600 text-white border-none"
+                        >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Exit
+                        </Button>
+
                         {/* Security Badge */}
                         <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 rounded-lg">
                             <Shield className="w-3.5 h-3.5 text-green-400" />
@@ -561,6 +880,128 @@ export default function VideoCallRoom() {
                         </div>
                     </div>
                 </header>
+
+                {/* Meeting Info Panel */}
+                {showMeetingInfo && (
+                    <>
+                        {/* Backdrop to close on click outside */}
+                        <div className="fixed inset-0 z-40" onClick={() => setShowMeetingInfo(false)} />
+                        <div className="fixed top-14 left-1/2 -translate-x-1/2 w-[420px] max-h-[80vh] overflow-y-auto bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-50">
+                            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                                <h3 className="font-semibold text-white flex items-center gap-2">
+                                    <Info className="w-4 h-4 text-cyan-400" />
+                                    Meeting Information
+                                </h3>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setShowMeetingInfo(false)}
+                                    className="text-gray-400 hover:text-white h-7 w-7"
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            </div>
+                            <div className="p-4 space-y-3">
+                                {/* Meeting ID */}
+                                <div className="bg-gray-700/50 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Meeting ID</span>
+                                        <button
+                                            onClick={() => copyToClipboard(roomId || '', 'meetingId')}
+                                            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                                        >
+                                            {copiedField === 'meetingId' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                            {copiedField === 'meetingId' ? 'Copied!' : 'Copy'}
+                                        </button>
+                                    </div>
+                                    <p className="text-white font-mono text-sm break-all">{roomId || 'N/A'}</p>
+                                </div>
+
+                                {/* Room Name */}
+                                <div className="bg-gray-700/50 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Room Name</span>
+                                        <button
+                                            onClick={() => copyToClipboard(getSafeRoomName(), 'roomName')}
+                                            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                                        >
+                                            {copiedField === 'roomName' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                            {copiedField === 'roomName' ? 'Copied!' : 'Copy'}
+                                        </button>
+                                    </div>
+                                    <p className="text-white font-mono text-sm break-all">{getSafeRoomName()}</p>
+                                </div>
+
+                                {/* Meeting Link */}
+                                <div className="bg-gray-700/50 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Meeting Link</span>
+                                        <button
+                                            onClick={() => copyToClipboard(window.location.href, 'meetingLink')}
+                                            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                                        >
+                                            {copiedField === 'meetingLink' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                            {copiedField === 'meetingLink' ? 'Copied!' : 'Copy'}
+                                        </button>
+                                    </div>
+                                    <p className="text-white text-sm break-all">{window.location.href}</p>
+                                </div>
+
+                                {/* Session Details */}
+                                <div className="bg-gray-700/50 rounded-lg p-3 space-y-2">
+                                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Session Details</span>
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <span className="text-gray-500">Patient:</span>
+                                            <p className="text-white">{sessionInfo?.patient_name || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500">Therapist:</span>
+                                            <p className="text-white">{sessionInfo?.therapist_name || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500">Type:</span>
+                                            <p className="text-white capitalize">{sessionInfo?.service_type?.replace(/_/g, ' ') || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500">Duration:</span>
+                                            <p className="text-white">{sessionInfo?.duration_minutes || 50} min</p>
+                                        </div>
+                                        {sessionInfo?.scheduled_at && (
+                                            <div className="col-span-2">
+                                                <span className="text-gray-500">Scheduled:</span>
+                                                <p className="text-white">{new Date(sessionInfo.scheduled_at).toLocaleString()}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Connection Status */}
+                                <div className="flex items-center gap-2 text-sm">
+                                    <div className={`w-2 h-2 rounded-full ${connectionState === 'connected' ? 'bg-green-500 animate-pulse' :
+                                        connectionState === 'ready' ? 'bg-yellow-500' : 'bg-gray-500'
+                                        }`} />
+                                    <span className="text-gray-300 capitalize">
+                                        {connectionState === 'connected' ? 'Connected & Secure' :
+                                            connectionState === 'ready' ? 'Ready to Connect' :
+                                                connectionState === 'loading' ? 'Loading...' : connectionState}
+                                    </span>
+                                </div>
+
+                                {/* Security Info */}
+                                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                                    <div className="flex items-center gap-2">
+                                        <Shield className="w-4 h-4 text-green-400" />
+                                        <span className="text-green-400 text-sm font-medium">End-to-End Encrypted</span>
+                                    </div>
+                                    <p className="text-green-400/70 text-xs mt-1">
+                                        All audio, video, and data in this session is encrypted. No recordings are stored.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 {/* Main Content */}
                 <div className="flex-1 flex relative">
@@ -584,26 +1025,26 @@ export default function VideoCallRoom() {
                                 startWithVideoMuted: mode === 'audio',
                                 prejoinPageEnabled: false,
                                 prejoinConfig: { enabled: false },
-                                
+
                                 // Disable ALL authentication and lobby features
                                 enableLobbyChat: false,
                                 hideLobbyButton: true,
                                 disableModeratorIndicator: true,
                                 disableRemoteMute: true,
                                 remoteVideoMenu: { disableKick: true, disableGrantModerator: true },
-                                
+
                                 // Hide Jitsi branding completely
                                 hideConferenceSubject: true,
                                 hideConferenceTimer: false,
                                 hideRecordingLabel: true,
                                 disableProfile: true,
-                                
+
                                 // Disable features that require auth
                                 fileRecordingsEnabled: false,
                                 liveStreamingEnabled: false,
                                 transcribingEnabled: false,
                                 enableClosePage: false,
-                                
+
                                 // Privacy & Security
                                 disableDeepLinking: true,
                                 disableInviteFunctions: true,
@@ -611,13 +1052,13 @@ export default function VideoCallRoom() {
                                 doNotStoreRoom: true,
                                 enableInsecureRoomNameWarning: false,
                                 enableEmailInStats: false,
-                                
+
                                 // Audio/Video
                                 enableNoisyMicDetection: true,
                                 enableNoAudioDetection: true,
                                 startAudioOnly: mode === 'audio',
                                 disableLocalVideoFlip: false,
-                                
+
                                 // Simplified toolbar
                                 toolbarButtons: [
                                     'microphone',
@@ -630,7 +1071,7 @@ export default function VideoCallRoom() {
                                     'tileview',
                                     'settings',
                                 ],
-                                
+
                                 // Minimal notifications
                                 notifications: [],
                                 disablePolls: true,
@@ -647,10 +1088,10 @@ export default function VideoCallRoom() {
                                 SHOW_POWERED_BY: false,
                                 SHOW_PROMOTIONAL_CLOSE_PAGE: false,
                                 SHOW_CHROME_EXTENSION_BANNER: false,
-                                
+
                                 // Custom styling
                                 DEFAULT_BACKGROUND: '#111827',
-                                
+
                                 // Disable unnecessary features
                                 DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
                                 MOBILE_APP_PROMO: false,
@@ -661,20 +1102,20 @@ export default function VideoCallRoom() {
                                 DISPLAY_WELCOME_PAGE_ADDITIONAL_CARD: false,
                                 DISPLAY_WELCOME_PAGE_CONTENT: false,
                                 DISPLAY_WELCOME_PAGE_TOOLBAR_ADDITIONAL_CONTENT: false,
-                                
+
                                 // Display names
                                 DEFAULT_REMOTE_DISPLAY_NAME: 'Participant',
                                 DEFAULT_LOCAL_DISPLAY_NAME: 'You',
-                                
+
                                 // Toolbar
                                 TOOLBAR_ALWAYS_VISIBLE: false,
                                 TOOLBAR_TIMEOUT: 4000,
                                 SETTINGS_SECTIONS: ['devices', 'language'],
-                                
+
                                 // Video layout
                                 FILM_STRIP_MAX_HEIGHT: 120,
                                 VERTICAL_FILMSTRIP: true,
-                                
+
                                 // Disable authentication UI
                                 AUTHENTICATION_ENABLE: false,
                             }}
@@ -690,6 +1131,22 @@ export default function VideoCallRoom() {
                                 }
                             }}
                         />
+
+                        {/* Floating Notes Toggle - Therapist Only */}
+                        {sessionInfo?.is_therapist && (
+                            <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-20">
+                                <Button
+                                    size="sm"
+                                    variant={showNotes ? 'default' : 'outline'}
+                                    className={`${showNotes ? 'bg-primary text-white' : 'bg-white/90 text-gray-800 border-gray-200'} shadow-lg backdrop-blur`}
+                                    onClick={() => setShowNotes(!showNotes)}
+                                >
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    {showNotes ? 'Hide Notes' : 'Notes'}
+                                    {saving && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Notes Side Panel - Therapist Only */}
@@ -719,9 +1176,18 @@ export default function VideoCallRoom() {
 
                             {/* Patient Info */}
                             <div className="px-4 py-3 bg-gray-700/30 border-b border-gray-700">
-                                <p className="text-sm text-gray-300">
-                                    <span className="text-gray-500">Patient:</span> {sessionInfo?.patient_name}
-                                </p>
+                                <div className="text-sm text-gray-300 flex items-center gap-2">
+                                    <span className="text-gray-500">Patient:</span>
+                                    <input
+                                        type="text"
+                                        value={editablePatientName}
+                                        onChange={(e) => {
+                                            setEditablePatientName(e.target.value);
+                                            setSessionInfo(prev => prev ? { ...prev, patient_name: e.target.value } : null);
+                                        }}
+                                        className="bg-gray-800 border-b border-gray-600 focus:border-primary focus:outline-none px-1 py-0.5 w-full"
+                                    />
+                                </div>
                                 <p className="text-xs text-gray-500 capitalize">
                                     {sessionInfo?.service_type?.replace(/_/g, ' ')} Session
                                 </p>
@@ -733,8 +1199,8 @@ export default function VideoCallRoom() {
                                     <button
                                         onClick={() => setNotesMode('soap')}
                                         className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${notesMode === 'soap'
-                                                ? 'bg-primary text-white'
-                                                : 'text-gray-400 hover:text-white'
+                                            ? 'bg-primary text-white'
+                                            : 'text-gray-400 hover:text-white'
                                             }`}
                                     >
                                         SOAP Format
@@ -742,8 +1208,8 @@ export default function VideoCallRoom() {
                                     <button
                                         onClick={() => setNotesMode('simple')}
                                         className={`flex-1 px-3 py-1.5 text-sm rounded-md transition-colors ${notesMode === 'simple'
-                                                ? 'bg-primary text-white'
-                                                : 'text-gray-400 hover:text-white'
+                                            ? 'bg-primary text-white'
+                                            : 'text-gray-400 hover:text-white'
                                             }`}
                                     >
                                         Simple
@@ -822,6 +1288,58 @@ export default function VideoCallRoom() {
                                         )}
                                     </p>
                                 </div>
+
+                                {/* PDF Actions Row */}
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Button
+                                        onClick={handleDownloadPDF}
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-xs border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                                        disabled={!soapNotes.subjective && !soapNotes.objective && !soapNotes.assessment && !soapNotes.plan && !simpleNotes}
+                                    >
+                                        <Download className="w-3 h-3 mr-1" />
+                                        Download PDF
+                                    </Button>
+                                    <Button
+                                        onClick={handleViewPDF}
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-xs border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                                        disabled={!soapNotes.subjective && !soapNotes.objective && !soapNotes.assessment && !soapNotes.plan && !simpleNotes}
+                                    >
+                                        <Eye className="w-3 h-3 mr-1" />
+                                        View PDF
+                                    </Button>
+                                    <Button
+                                        onClick={handleSavePDFToCloud}
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-xs border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+                                        disabled={savingPdf || (!soapNotes.subjective && !soapNotes.objective && !soapNotes.assessment && !soapNotes.plan && !simpleNotes)}
+                                    >
+                                        {savingPdf ? (
+                                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                        ) : (
+                                            <Upload className="w-3 h-3 mr-1" />
+                                        )}
+                                        Save to Cloud
+                                    </Button>
+                                </div>
+
+                                {/* Cloud PDF link if available */}
+                                {pdfUrl && (
+                                    <a
+                                        href={pdfUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 mb-3"
+                                    >
+                                        <ExternalLink className="w-3 h-3" />
+                                        View saved PDF in cloud
+                                    </a>
+                                )}
+
                                 <Button
                                     onClick={() => saveNotes(false)}
                                     disabled={saving}

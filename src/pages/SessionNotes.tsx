@@ -9,10 +9,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
     FileText, Calendar, User, Save, ArrowLeft, Search, Clock,
-    CheckCircle, AlertCircle, ChevronDown, Printer, Download, Lock
+    CheckCircle, AlertCircle, ChevronDown, Printer, Download, Lock, Eye, Upload, ExternalLink, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { downloadSessionNotesPDF, viewSessionNotesPDF, saveSessionNotesPDFToImageKit } from '@/lib/services/sessionNotesPdfService';
 
 interface SOAPNote {
     subjective: string;
@@ -57,6 +58,8 @@ export default function SessionNotes() {
     const [useSOAPFormat, setUseSOAPFormat] = useState(true);
     const [plainNotes, setPlainNotes] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending'>('all');
+    const [savingPdf, setSavingPdf] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -224,6 +227,77 @@ export default function SessionNotes() {
         printWindow.print();
     };
 
+    const handleDownloadPDF = () => {
+        if (!selectedNote) return;
+        downloadSessionNotesPDF({
+            patientName: selectedNote.patient_name,
+            therapistName: user?.full_name || 'Therapist',
+            sessionDate: selectedNote.session_date,
+            serviceType: selectedNote.service_type,
+            durationMinutes: selectedNote.duration_minutes,
+            noteType: useSOAPFormat ? 'soap' : 'simple',
+            soapNotes: useSOAPFormat ? soapNotes : undefined,
+            simpleNotes: !useSOAPFormat ? plainNotes : undefined,
+        });
+        toast({
+            title: '📄 PDF Downloaded',
+            description: `Session notes for ${selectedNote.patient_name} downloaded.`
+        });
+    };
+
+    const handleViewPDF = () => {
+        if (!selectedNote) return;
+        viewSessionNotesPDF({
+            patientName: selectedNote.patient_name,
+            therapistName: user?.full_name || 'Therapist',
+            sessionDate: selectedNote.session_date,
+            serviceType: selectedNote.service_type,
+            durationMinutes: selectedNote.duration_minutes,
+            noteType: useSOAPFormat ? 'soap' : 'simple',
+            soapNotes: useSOAPFormat ? soapNotes : undefined,
+            simpleNotes: !useSOAPFormat ? plainNotes : undefined,
+        });
+    };
+
+    const handleSavePDFToCloud = async () => {
+        if (!selectedNote) return;
+        setSavingPdf(true);
+        try {
+            const { url, error } = await saveSessionNotesPDFToImageKit(
+                {
+                    patientName: selectedNote.patient_name,
+                    therapistName: user?.full_name || 'Therapist',
+                    sessionDate: selectedNote.session_date,
+                    serviceType: selectedNote.service_type,
+                    durationMinutes: selectedNote.duration_minutes,
+                    noteType: useSOAPFormat ? 'soap' : 'simple',
+                    soapNotes: useSOAPFormat ? soapNotes : undefined,
+                    simpleNotes: !useSOAPFormat ? plainNotes : undefined,
+                },
+                selectedNote.booking_id,
+                selectedNote.id
+            );
+
+            if (error) throw error;
+            if (url) {
+                setPdfUrl(url);
+                toast({
+                    title: '☁️ PDF Saved to Cloud',
+                    description: 'Session notes PDF uploaded securely to cloud storage.'
+                });
+            }
+        } catch (err) {
+            console.error('PDF cloud save error:', err);
+            toast({
+                title: 'Upload Info',
+                description: 'Cloud upload unavailable. Use "Download PDF" to save locally.',
+                variant: 'destructive'
+            });
+        } finally {
+            setSavingPdf(false);
+        }
+    };
+
     const filteredNotes = notes.filter(n => {
         const matchesSearch = n.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             n.service_type.toLowerCase().includes(searchQuery.toLowerCase());
@@ -290,8 +364,28 @@ export default function SessionNotes() {
                             <div className="flex items-center gap-2">
                                 {selectedNote && (
                                     <>
+                                        <Button variant="outline" size="sm" onClick={handleViewPDF} title="View as PDF">
+                                            <Eye className="w-4 h-4 mr-1" /> View PDF
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={handleDownloadPDF} title="Download PDF">
+                                            <Download className="w-4 h-4 mr-1" /> Download
+                                        </Button>
                                         <Button variant="outline" size="sm" onClick={handlePrintNotes}>
                                             <Printer className="w-4 h-4 mr-1" /> Print
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleSavePDFToCloud}
+                                            disabled={savingPdf}
+                                            title="Save PDF to cloud"
+                                        >
+                                            {savingPdf ? (
+                                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                            ) : (
+                                                <Upload className="w-4 h-4 mr-1" />
+                                            )}
+                                            Save to Cloud
                                         </Button>
                                     </>
                                 )}
@@ -470,23 +564,76 @@ export default function SessionNotes() {
                                     </div>
 
                                     {/* Footer */}
-                                    <div className="p-6 border-t border-gray-100 flex justify-between items-center">
-                                        <p className="text-sm text-gray-500">
-                                            {hasChanges() ? '• Unsaved changes' : 'All changes saved'}
-                                        </p>
-                                        <Button onClick={handleSaveNotes} disabled={saving || !hasChanges()} className="btn-icy">
-                                            {saving ? (
-                                                <>
-                                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                                                    Saving...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Save className="w-4 h-4 mr-2" />
-                                                    Save Notes
-                                                </>
-                                            )}
-                                        </Button>
+                                    <div className="p-6 border-t border-gray-100">
+                                        {/* PDF Actions */}
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleDownloadPDF}
+                                                className="flex-1"
+                                                disabled={!soapNotes.subjective && !soapNotes.objective && !soapNotes.assessment && !soapNotes.plan && !plainNotes}
+                                            >
+                                                <Download className="w-4 h-4 mr-1" />
+                                                Download PDF
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleViewPDF}
+                                                className="flex-1"
+                                                disabled={!soapNotes.subjective && !soapNotes.objective && !soapNotes.assessment && !soapNotes.plan && !plainNotes}
+                                            >
+                                                <Eye className="w-4 h-4 mr-1" />
+                                                View PDF
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleSavePDFToCloud}
+                                                className="flex-1"
+                                                disabled={savingPdf || (!soapNotes.subjective && !soapNotes.objective && !soapNotes.assessment && !soapNotes.plan && !plainNotes)}
+                                            >
+                                                {savingPdf ? (
+                                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                                ) : (
+                                                    <Upload className="w-4 h-4 mr-1" />
+                                                )}
+                                                Save to Cloud
+                                            </Button>
+                                        </div>
+
+                                        {/* Cloud PDF link */}
+                                        {pdfUrl && (
+                                            <a
+                                                href={pdfUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 text-sm text-cyan-600 hover:text-cyan-500 mb-4"
+                                            >
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                View saved PDF in cloud storage
+                                            </a>
+                                        )}
+
+                                        <div className="flex justify-between items-center">
+                                            <p className="text-sm text-gray-500">
+                                                {hasChanges() ? '• Unsaved changes' : 'All changes saved'}
+                                            </p>
+                                            <Button onClick={handleSaveNotes} disabled={saving || !hasChanges()} className="btn-icy">
+                                                {saving ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                                        Saving...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Save className="w-4 h-4 mr-2" />
+                                                        Save Notes
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (

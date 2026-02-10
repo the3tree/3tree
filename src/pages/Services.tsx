@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import Layout from "@/components/layout/Layout";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, User, Users, UsersRound, Heart, Sparkles, Video, MessageCircle, Building, Check } from "lucide-react";
+import { ArrowRight, Users, GraduationCap, Building2, Presentation, Video, MessageCircle, Building, Check } from "lucide-react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import BackButton from "@/components/ui/BackButton";
@@ -12,49 +12,48 @@ gsap.registerPlugin(ScrollTrigger);
 
 const services = [
   {
-    id: "individual",
-    icon: User,
-    title: "Individual Therapy",
-    description:
-      "A safe, personal space for one-on-one therapy to explore your feelings, understand patterns, and grow emotionally and mentally. Our therapists use evidence-based approaches tailored to your unique needs.",
-    features: ["Cognitive Behavioral Therapy", "Mindfulness-Based Therapy", "Person-Centered Approach", "Trauma-Informed Care"],
-    image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=600&h=400&fit=crop",
-  },
-  {
-    id: "couple",
+    id: "supervision",
     icon: Users,
-    title: "Couple Therapy",
+    title: "Supervision for Therapists",
+    subtitle: "Because the healer needs support too",
     description:
-      "Therapy for couples to explore relationship dynamics, enhance understanding, manage disagreements, and nurture intimacy, empathy, and mutual support.",
-    features: ["Communication Skills", "Conflict Resolution", "Intimacy Building", "Trust Restoration"],
-    image: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=600&h=400&fit=crop",
+      "We offer structured online supervision, peer reflection spaces, and case-consultation circles for therapists and mental health professionals. Designed to prevent burnout, strengthen ethical practice, and support clinical confidence at every stage of your career.",
+    features: ["Online Supervision", "Peer Reflection Spaces", "Case-Consultation Circles", "Burnout Prevention"],
+    image: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=600&h=400&fit=crop",
+    href: "/supervision-therapists",
   },
   {
-    id: "group",
-    icon: UsersRound,
-    title: "Group Therapy",
+    id: "school",
+    icon: GraduationCap,
+    title: "School & Institutional Wellbeing Programs",
+    subtitle: "Healthier classrooms start with emotionally supported systems",
     description:
-      "A safe space to share experiences with peers, explore common challenges, receive support, and develop practical strategies to navigate emotions together.",
-    features: ["Peer Support", "Shared Learning", "Social Skills", "Community Building"],
-    image: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&h=400&fit=crop",
+      "We partner with schools and institutions to deliver structured, online mental health programs that enable early identification of student distress, build emotional literacy, equip educators with evidence-based tools that improve emotional regulation, classroom engagement, and institutional wellbeing.",
+    features: ["Early Distress Identification", "Emotional Literacy Building", "Evidence-Based Tools", "Educator Support"],
+    image: "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=600&h=400&fit=crop",
+    href: "/support-schools",
   },
   {
-    id: "child",
-    icon: Heart,
-    title: "Child & Adolescent Therapy",
+    id: "organisations",
+    icon: Building2,
+    title: "Support for Organisations",
+    subtitle: "Building healthier teams, from the inside out",
     description:
-      "A supportive space for children (5–12) and teens (13–17) to explore emotions, navigate challenges, and build resilience. Parental or guardian consent required.",
-    features: ["Play Therapy", "Art Therapy", "Family Involvement", "School Collaboration"],
-    image: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=600&h=400&fit=crop",
+      "We support organisations across India with structured, online mental health programs designed to reduce burnout, improve emotional resilience, and strengthen workplace culture. From early-stage start-ups to established enterprises, our services are tailored to meet employees where they are — confidential, accessible, and grounded in evidence-based psychological practice.",
+    features: ["Burnout Reduction", "Emotional Resilience", "Workplace Culture", "Confidential Support"],
+    image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=600&h=400&fit=crop",
+    href: "/support-businesses",
   },
   {
-    id: "holistic",
-    icon: Sparkles,
-    title: "Holistic Consciousness Coaching",
+    id: "workshops",
+    icon: Presentation,
+    title: "Mental Health Workshops",
+    subtitle: "Awareness that leads to action",
     description:
-      "A holistic approach blending mental health strategies and mind-body-spirit practices to support self-awareness, emotional regulation, mindfulness, and purposeful living.",
-    features: ["Mindfulness Training", "Breathwork", "Life Purpose Discovery", "Spiritual Integration"],
-    image: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600&h=400&fit=crop",
+      "Our expert-led online workshops cover stress, emotional regulation, relationships, trauma awareness, parenting, and professional wellbeing. Designed for students, educators, employees, caregivers, and communities — practical, interactive, and grounded in real-life needs.",
+    features: ["Stress Management", "Emotional Regulation", "Relationship Skills", "Trauma Awareness"],
+    image: "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=600&h=400&fit=crop",
+    href: "/support-workshops",
   },
 ];
 
@@ -133,10 +132,10 @@ export default function Services() {
   return (
     <>
       <Helmet>
-        <title>Our Services | The 3 Tree - Therapy & Counselling</title>
+        <title>Support We Offer | The 3 Tree - Therapy & Counselling</title>
         <meta
           name="description"
-          content="Explore our therapy services: individual, couple, group therapy, child counselling, and holistic coaching. Find the right support for your mental wellness journey."
+          content="Explore our support services: supervision for therapists, school wellbeing programs, organisational mental health support, and expert-led workshops. Building healthier communities together."
         />
       </Helmet>
       <Layout>
@@ -161,13 +160,13 @@ export default function Services() {
 
             <div className="services-hero-content max-w-3xl mx-auto text-center">
               <span className="inline-block text-sm tracking-[0.3em] text-cyan-300 font-medium mb-4 uppercase">
-                Our Services
+                Support We Offer
               </span>
               <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl mb-6 leading-tight">
                 Support We Offer
               </h1>
               <p className="text-gray-300 text-lg leading-relaxed max-w-2xl mx-auto">
-                We provide comprehensive mental health services tailored to meet you where you are in your journey.
+                We provide comprehensive mental health support for therapists, institutions, organisations, and communities across India.
               </p>
             </div>
           </div>
@@ -176,52 +175,51 @@ export default function Services() {
         {/* Services */}
         <section ref={servicesRef} className="py-20 lg:py-28 bg-white">
           <div className="container mx-auto px-4 lg:px-8">
-            <div className="services-list space-y-20 lg:space-y-28">
-              {services.map((service, index) => (
+            <div className="services-list grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+              {services.map((service) => (
                 <div
                   key={service.id}
                   id={service.id}
-                  className="service-block scroll-mt-24"
+                  className="service-block scroll-mt-24 rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-1"
                 >
-                  <div className={`grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center ${index % 2 === 1 ? "lg:flex-row-reverse" : ""
-                    }`}>
-                    {/* Content */}
-                    <div className={index % 2 === 1 ? "lg:order-2" : ""}>
-                      <div className="w-14 h-14 rounded-xl bg-[#1a2744] flex items-center justify-center mb-6">
+                  <div className="flex h-full flex-col gap-6 p-8 lg:p-9">
+                    <div className="flex items-start gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-[#1a2744] flex items-center justify-center shadow-sm">
                         <service.icon className="h-7 w-7 text-white" />
                       </div>
-                      <h2 className="font-serif text-3xl lg:text-4xl text-gray-900 mb-4">
-                        {service.title}
-                      </h2>
-                      <p className="text-gray-600 leading-relaxed mb-6 text-lg">
-                        {service.description}
-                      </p>
-                      <ul className="grid grid-cols-2 gap-3 mb-8">
-                        {service.features.map((feature) => (
-                          <li key={feature} className="flex items-center gap-2 text-sm text-gray-700">
-                            <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                      <Button asChild className="bg-[#1a2744] hover:bg-[#0f1a2e] text-white rounded-lg">
-                        <Link to={`/booking?service=${service.id}`}>
-                          Book a Session
+                      <div>
+                        <h2 className="font-serif text-2xl lg:text-3xl text-gray-900 mb-1 leading-snug">
+                          {service.title}
+                        </h2>
+                        <p className="text-primary italic text-sm lg:text-base">
+                          {service.subtitle}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-gray-700 leading-relaxed text-base lg:text-lg">
+                      {service.description}
+                    </p>
+
+                    <ul className="flex flex-wrap gap-2.5">
+                      {service.features.map((feature) => (
+                        <li
+                          key={feature}
+                          className="inline-flex items-center gap-2 rounded-full bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-gray-800"
+                        >
+                          <Check className="w-4 h-4 text-primary" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="pt-2">
+                      <Button asChild className="bg-[#1a2744] hover:bg-[#0f1a2e] text-white rounded-lg w-full justify-center">
+                        <Link to={service.href}>
+                          Learn More
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                       </Button>
-                    </div>
-
-                    {/* Image */}
-                    <div className={index % 2 === 1 ? "lg:order-1" : ""}>
-                      <div className="relative rounded-2xl overflow-hidden shadow-xl">
-                        <img
-                          src={service.image}
-                          alt={service.title}
-                          className="w-full aspect-[4/3] object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#1a2744]/20 to-transparent" />
-                      </div>
                     </div>
                   </div>
                 </div>

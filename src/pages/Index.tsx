@@ -1,10 +1,12 @@
 import { Helmet } from "react-helmet-async";
 import Layout from "@/components/layout/Layout";
+import Chatbot from "@/components/home/Chatbot";
 
 // Home Page Sections - Using cleaned-up components
 import Hero from "@/components/home/Hero";
 import MindBodySoul from "@/components/home/MindBodySoul";
 import ServicesCarousel from "@/components/home/ServicesCarousel";
+import SupportWeOffer from "@/components/home/SupportWeOffer";
 import WhyChooseUs from "@/components/home/WhyChooseUs";
 import HowItWorks from "@/components/home/HowItWorks";
 import AssessmentsHighlight from "@/components/home/AssessmentsHighlight";
@@ -62,6 +64,9 @@ export default function Index() {
                     {/* 3. Types of Therapy - Services Carousel */}
                     <ServicesCarousel />
 
+                    {/* 3b. Services - Support we offer */}
+                    <SupportWeOffer />
+
                     {/* 4. Why Choose Us - Trust building */}
                     <WhyChooseUs />
 
@@ -78,6 +83,7 @@ export default function Index() {
                     <CTASection />
                 </main>
             </Layout>
+            <Chatbot />
         </>
     );
 }

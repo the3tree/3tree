@@ -757,6 +757,15 @@ export default function TherapistDashboard() {
                                                         <div className="flex items-center gap-2">
                                                             <Button
                                                                 size="sm"
+                                                                className="btn-icy text-xs"
+                                                                onClick={() => handleStartSession(session.id)}
+                                                                title="Join meeting"
+                                                            >
+                                                                <Video className="w-3 h-3 mr-1" />
+                                                                Join
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
                                                                 variant="ghost"
                                                                 onClick={() => setAssessmentModal({
                                                                     open: true,

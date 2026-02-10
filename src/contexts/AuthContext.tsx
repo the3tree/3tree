@@ -31,6 +31,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Ensure a row exists in the public "users" table for the authenticated user
+// IMPORTANT: Only inserts if profile doesn't exist. Never overwrites existing data.
 const ensureUserProfileExists = async (authUser: SupabaseAuthUser | null) => {
     if (!authUser) {
         console.warn('⚠️ ensureUserProfileExists called with null user');
@@ -38,13 +39,27 @@ const ensureUserProfileExists = async (authUser: SupabaseAuthUser | null) => {
     }
 
     console.log('🔧 Ensuring user profile exists for:', authUser.id);
+
+    // First check if profile already exists — don't overwrite existing data
+    const { data: existingProfile } = await supabase
+        .from('users')
+        .select('id, is_profile_complete')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+    if (existingProfile) {
+        console.log('✅ User profile already exists, skipping upsert');
+        return;
+    }
+
+    // Profile doesn't exist — create it
     const metadata = authUser.user_metadata || {};
     const defaultName = metadata.full_name || metadata.name || authUser.email?.split('@')[0] || 'User';
     const defaultRole = (metadata.role as User['role']) || 'client';
 
     const { error } = await supabase
         .from('users')
-        .upsert({
+        .insert({
             id: authUser.id,
             email: authUser.email,
             full_name: defaultName,
@@ -53,12 +68,12 @@ const ensureUserProfileExists = async (authUser: SupabaseAuthUser | null) => {
             role: defaultRole,
             is_active: true,
             is_profile_complete: false,
-        }, { onConflict: 'id' });
+        });
 
     if (error) {
-        console.error('❌ Error ensuring user profile exists:', error);
+        console.error('❌ Error creating user profile:', error);
     } else {
-        console.log('✅ User profile ensured for:', authUser.id);
+        console.log('✅ User profile created for:', authUser.id);
     }
 };
 
@@ -183,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 await new Promise(resolve => setTimeout(resolve, 300));
                 const retry = await Promise.race([
                     supabase.from('users').select('*').eq('id', userId).single(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Final retry timeout')), 3000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 5000))
                 ]) as any;
 
                 data = retry.data;
@@ -218,13 +233,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const authUser = authData.user;
 
                 // Set a minimal user object with auth data
+                // IMPORTANCE: Default is_profile_complete to TRUE to avoid loop
                 setUser({
                     id: userId,
                     email: authUser?.email || 'user@example.com',
                     full_name: authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || 'User',
                     role: (authUser?.user_metadata?.role as User['role']) || 'client',
                     is_active: true,
-                    is_profile_complete: false,
+                    is_profile_complete: true, // Optimistically assume complete to avoid loop
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                 } as any);
@@ -242,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 full_name: authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || 'User',
                 role: (authUser?.user_metadata?.role as User['role']) || 'client',
                 is_active: true,
-                is_profile_complete: false,
+                is_profile_complete: true, // Optimistically assume complete to avoid loop
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             } as any);
