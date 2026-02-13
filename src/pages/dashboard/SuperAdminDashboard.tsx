@@ -12,7 +12,7 @@ import {
     Users, Calendar, DollarSign, Shield, UserCheck, Activity, Clock, Search,
     FileText, Eye, RefreshCw, Settings, BarChart3, History, Bell, LogOut,
     ChevronDown, TrendingUp, Award, Briefcase, Zap, Globe, Download, Filter,
-    CheckCircle, XCircle, AlertCircle, PieChart, Database,
+    CheckCircle, XCircle, AlertCircle, PieChart, Database, Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -315,9 +315,10 @@ function SuperAdminDashboardContent() {
                                     <div className="admin-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                                         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
                                         <div className="flex flex-wrap gap-3">
-                                            <QuickActionButton label="Export Report" icon={Download} onClick={() => toast({ title: 'Exporting...' })} />
-                                            <QuickActionButton label="View Analytics" icon={BarChart3} onClick={() => setActiveTab('analytics')} variant="secondary" />
-                                            <QuickActionButton label="System Health" icon={Database} onClick={() => toast({ title: 'All Systems Operational' })} variant="secondary" />
+                                                <QuickActionButton label="Export Report" icon={Download} onClick={() => toast({ title: 'Exporting...' })} />
+                                                <QuickActionButton label="View Analytics" icon={BarChart3} onClick={() => setActiveTab('analytics')} variant="secondary" />
+                                                <QuickActionButton label="System Health" icon={Database} onClick={() => toast({ title: 'All Systems Operational' })} variant="secondary" />
+                                                <QuickActionButton label="Shop Admin" icon={Package} onClick={() => navigate('/shop-admin')} variant="secondary" />
                                         </div>
                                     </div>
 

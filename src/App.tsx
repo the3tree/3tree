@@ -77,6 +77,7 @@ const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 // Other Pages
 const EBooks = lazy(() => import("./pages/EBooks"));
 const Shop = lazy(() => import("./pages/Shop"));
+const ShopAdmin = lazy(() => import("./pages/ShopAdmin"));
 const Stories = lazy(() => import("./pages/Stories"));
 const IntakeForm = lazy(() => import("./pages/IntakeForm"));
 const AssessmentTake = lazy(() => import("./pages/AssessmentTake"));
@@ -146,6 +147,7 @@ const App = () => (
                 <Route path="/blogs/*" element={<BlogsPage />} />
                 <Route path="/ebooks" element={<EBooks />} />
                 <Route path="/shop" element={<Shop />} />
+                <Route path="/shop-admin" element={<ShopAdmin />} />
                 <Route path="/stories" element={<Stories />} />
                 <Route path="/intake-form" element={<IntakeForm />} />
                 <Route path="/assessments/:slug" element={<AssessmentTake />} />

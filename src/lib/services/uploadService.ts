@@ -1,5 +1,7 @@
 // File Upload Utilities for Messages and Documents
+// Uses ImageKit (20 GB free) for all file storage
 import { supabase } from '@/lib/supabase';
+import { uploadToImageKit } from './imagekitService';
 
 export interface UploadResult {
     url: string;
@@ -37,7 +39,8 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * Upload a file to Supabase Storage
+ * Upload a file to ImageKit
+ * Falls back to Supabase Storage if ImageKit fails
  */
 export async function uploadFile(
     file: File,
@@ -60,29 +63,55 @@ export async function uploadFile(
         const timestamp = Date.now();
         const randomStr = Math.random().toString(36).substring(7);
         const extension = file.name.split('.').pop();
-        const fileName = `${folder}/${timestamp}_${randomStr}.${extension}`;
+        const fileName = `${timestamp}_${randomStr}.${extension}`;
 
-        // Upload to Supabase Storage
-        const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(fileName, file, {
-                cacheControl: '3600',
-                upsert: false,
-            });
-
-        if (error) {
-            console.error('Upload error:', error);
-            return { data: null, error: error.message };
+        // Simulate progress start
+        if (onProgress) {
+            onProgress({ loaded: 0, total: file.size, percentage: 0 });
         }
 
-        // Get public URL
-        const { data: publicUrlData } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(fileName);
+        // Upload to ImageKit
+        const imagekitFolder = `/${bucket}/${folder}`;
+        const { data: ikData, error: ikError } = await uploadToImageKit(file, fileName, imagekitFolder);
+
+        if (ikError || !ikData) {
+            console.warn('ImageKit upload failed, falling back to Supabase Storage:', ikError);
+
+            // Fallback to Supabase Storage
+            const supaPath = `${folder}/${fileName}`;
+            const { error: supaError } = await supabase.storage
+                .from(bucket)
+                .upload(supaPath, file, { cacheControl: '3600', upsert: false });
+
+            if (supaError) {
+                return { data: null, error: supaError.message };
+            }
+
+            const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(supaPath);
+
+            if (onProgress) {
+                onProgress({ loaded: file.size, total: file.size, percentage: 100 });
+            }
+
+            return {
+                data: {
+                    url: publicUrlData.publicUrl,
+                    fileName: file.name,
+                    fileType: file.type,
+                    fileSize: file.size,
+                },
+                error: null,
+            };
+        }
+
+        // ImageKit succeeded
+        if (onProgress) {
+            onProgress({ loaded: file.size, total: file.size, percentage: 100 });
+        }
 
         return {
             data: {
-                url: publicUrlData.publicUrl,
+                url: ikData.url,
                 fileName: file.name,
                 fileType: file.type,
                 fileSize: file.size,

@@ -152,12 +152,12 @@ export const serviceTypes: ServiceType[] = [
         category: 'therapy'
     },
     {
-        id: 'family',
-        name: 'Family Therapy',
-        description: 'Improve family dynamics and communication patterns',
-        duration: 75,
-        price: 6500,
-        icon: 'Users',
+        id: 'child_adolescent',
+        name: 'Child & Adolescent Online Services',
+        description: 'Online mental health & wellness services for children and adolescents (under 18) with parental consent',
+        duration: 50,
+        price: 3500,
+        icon: 'Baby',
         category: 'therapy'
     },
     {

@@ -28,6 +28,7 @@ import {
     BookingSuccess
 } from '@/components/booking';
 import { ConsentFormStep } from '@/components/booking/ConsentFormStep';
+import ChildConsentForm from '@/components/booking/ChildConsentForm';
 
 // Therapist Filter
 import TherapistFilter, { applyTherapistFilters, defaultFilters } from '@/components/booking/TherapistFilter';
@@ -595,6 +596,27 @@ export default function BookingPage() {
         setConsentData(submission);
         goNext(); // Move to step 2 (questionnaire)
     };
+
+    // Handle child/adolescent consent completion
+    const handleChildConsentComplete = (data: { parentConsent: boolean; teenAssent: boolean }) => {
+        // Build a ConsentSubmission-compatible object so the rest of the flow works
+        const submission: ConsentSubmission = {
+            user_id: user?.id || '',
+            consent_version: CONSENT_VERSION,
+            selected_services: ['child-adolescent'],
+        };
+        setConsentCompleted(true);
+        setConsentData(submission);
+
+        toast({
+            title: 'Consent Recorded',
+            description: data.teenAssent
+                ? 'Parental consent and teen assent accepted.'
+                : 'Parental consent accepted.',
+        });
+
+        goNext();
+    };
     const handleQuestionnaireComplete = async (data: Record<string, unknown>) => {
         if (!user?.id || !selectedService || !currentQuestionnaire) return;
 
@@ -901,7 +923,15 @@ export default function BookingPage() {
                             )}
 
                             {/* Step 1: Consent Form */}
-                            {currentStep === 1 && user && (
+                            {currentStep === 1 && user && selectedService === 'child_adolescent' && (
+                                <ChildConsentForm
+                                    onComplete={handleChildConsentComplete}
+                                    onBack={goBack}
+                                />
+                            )}
+
+                            {/* Step 1: Consent Form (standard — non-child services) */}
+                            {currentStep === 1 && user && selectedService !== 'child_adolescent' && (
                                 <ConsentFormStep
                                     onComplete={handleConsentComplete}
                                     onSkip={goBack}

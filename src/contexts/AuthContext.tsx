@@ -122,23 +122,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(null);
                 setLoading(false);
             } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-                // Only fetch profile on token refresh if we don't have a user
-                if (!user) {
-                    await fetchUserProfile(session.user.id);
-                }
+                // Skip profile fetch on token refresh if we already have a user loaded
+                // This prevents unnecessary timeouts when the session auto-refreshes
+                console.log('🔄 Token refreshed — user already loaded, skipping profile re-fetch');
             } else {
                 setUser(null);
                 setLoading(false);
             }
         });
 
-        // Safety timeout to prevent infinite loading state
+        // Safety timeout to prevent infinite loading state (raised to 20 s)
         const loadingTimeout = setTimeout(() => {
             if (loading) {
                 console.warn('⚠️ Auth loading timeout reached, forcing loading to false');
                 setLoading(false);
             }
-        }, 8000);
+        }, 20000);
 
         return () => {
             subscription.unsubscribe();
@@ -151,9 +150,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             console.log('👤 Fetching user profile for:', userId);
 
-            // Create a timeout promise
+            // Create a timeout promise — 15 s so slow connections / cold starts succeed
             const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Profile fetch timeout')), 5000);
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 15000);
             });
 
             // First attempt to fetch the profile with timeout
@@ -178,10 +177,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const { data: authUserData } = await supabase.auth.getUser();
                 await ensureUserProfileExists(authUserData.user);
 
-                // Quick retry
+                // Quick retry with generous timeout
                 const retry = await Promise.race([
                     supabase.from('users').select('*').eq('id', userId).single(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Retry timeout')), 3000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Retry timeout')), 10000))
                 ]) as any;
 
                 data = retry.data;
@@ -198,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 await new Promise(resolve => setTimeout(resolve, 300));
                 const retry = await Promise.race([
                     supabase.from('users').select('*').eq('id', userId).single(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 5000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 15000))
                 ]) as any;
 
                 data = retry.data;
@@ -329,7 +328,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         .single();
 
                     const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Profile fetch timeout')), 4000)
+                        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
                     );
 
                     try {

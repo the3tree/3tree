@@ -12,6 +12,7 @@ export { default as TimeSlotPicker, TimeSlotPickerSkeleton } from './TimeSlotPic
 export { default as BookingConfirmation } from './BookingConfirmation';
 export { default as BookingSuccess } from './BookingSuccess';
 export { ConsentFormStep } from './ConsentFormStep';
+export { default as ChildConsentForm } from './ChildConsentForm';
 export { ServiceMultiSelect } from './ServiceMultiSelect';
 export { ConsentContent } from './ConsentContent';
 export { ConsentAgreement } from './ConsentAgreement';

@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 const BOOKING_TO_CONSENT_MAP: Record<string, string> = {
   'individual': SERVICE_TYPES.INDIVIDUAL_THERAPY,
   'couple': SERVICE_TYPES.INDIVIDUAL_THERAPY,
-  'family': SERVICE_TYPES.INDIVIDUAL_THERAPY,
+  'child_adolescent': SERVICE_TYPES.CHILD_ADOLESCENT,
   'group': SERVICE_TYPES.GROUP_THERAPY,
   'consultation': SERVICE_TYPES.PSYCHIATRIC,
   'crisis': SERVICE_TYPES.INDIVIDUAL_THERAPY,

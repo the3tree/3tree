@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { User, Heart, Users, MessageCircle, Check } from 'lucide-react';
+import { User, Heart, Users, MessageCircle, Check, Baby } from 'lucide-react';
 import { gsap } from 'gsap';
 import type { ServiceType } from '@/lib/bookingService';
 
@@ -18,6 +18,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
     Heart: Heart,
     Users: Users,
     MessageCircle: MessageCircle,
+    Baby: Baby,
 };
 
 export default function ServiceSelector({ services, selectedService, onSelect }: ServiceSelectorProps) {

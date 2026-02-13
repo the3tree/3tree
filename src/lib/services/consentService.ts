@@ -46,6 +46,7 @@ export const SERVICE_TYPES = {
   GROUP_THERAPY: 'group-therapy',
   YOGA_WELLNESS: 'yoga-wellness',
   NUTRITION: 'nutrition-guidance',
+  CHILD_ADOLESCENT: 'child-adolescent',
 } as const;
 
 // ==========================================

@@ -211,6 +211,52 @@ I acknowledge that:
     • I have consulted a medical professional where required`,
     applicableServices: [SERVICE_TYPES.NUTRITION],
   },
+  {
+    id: 'child-adolescent',
+    title: 'CHILD & ADOLESCENT ONLINE SERVICES — INFORMED PARENTAL CONSENT & ADOLESCENT ASSENT',
+    content: `(For Clients Below 18 Years of Age)
+
+Please read carefully before proceeding.
+This consent applies to children and adolescents below 18 years receiving online mental health and wellness services through The3tree.
+
+All services are provided with the child's best interests, safety, dignity, and developmental needs as the primary consideration, in accordance with Indian law and accepted ethical practice.
+
+Parent / Legal Guardian Authorization
+The parent or legal guardian confirms that they have the legal authority to provide consent on behalf of the child/adolescent and that all information shared is accurate.
+
+Child / Adolescent Assent
+The child/adolescent will be informed about the services in an age-appropriate and understandable manner, and their willing participation (assent) will be respected wherever possible.
+
+Nature of Services
+Services may include psychiatric consultation, individual psychological therapy/counselling, yoga & mind–body wellness services, and nutrition & lifestyle guidance, as selected.
+It is understood that:
+    • Psychiatric services may involve medical assessment and medication
+    • Therapy, yoga, and nutrition services are non-emergency and non-medical, unless explicitly stated
+
+Online Service Delivery
+Services are provided online (video or audio). Online services may involve technical limitations, physical emergency intervention is not possible, and absolute digital confidentiality cannot be guaranteed despite reasonable safeguards.
+
+Confidentiality & Its Limits
+Information shared during sessions is treated as confidential. Confidentiality may be limited if there is:
+    • Risk of harm
+    • Suspected abuse or neglect
+    • Legal requirements
+    • Concerns related to the child's safety or wellbeing
+Caregivers may receive relevant feedback while respecting the child's privacy.
+
+Emergency Disclaimer
+The3tree is not an emergency or crisis service. In case of immediate risk, local emergency services, hospitals, or child protection services must be contacted.
+
+Voluntary Participation
+Participation in services is voluntary. Consent may be withdrawn at any time. No specific outcomes or improvements are guaranteed.
+
+Data Protection
+Personal and clinical information is collected and stored securely, accessed only by authorised professionals, and handled in accordance with applicable Indian data-protection laws.
+
+Governing Law
+This consent is governed by the laws of India, and disputes are subject to Indian jurisdiction.`,
+    applicableServices: [SERVICE_TYPES.CHILD_ADOLESCENT],
+  },
 ];
 
 // ==========================================
@@ -253,6 +299,7 @@ export function getServiceDisplayName(serviceId: string): string {
     [SERVICE_TYPES.GROUP_THERAPY]: 'Group Therapy',
     [SERVICE_TYPES.YOGA_WELLNESS]: 'Yoga / Mind–Body Wellness Services',
     [SERVICE_TYPES.NUTRITION]: 'Nutrition & Lifestyle Guidance',
+    [SERVICE_TYPES.CHILD_ADOLESCENT]: 'Child & Adolescent Online Services',
   };
   return names[serviceId] || serviceId;
 }
@@ -267,6 +314,7 @@ export function getAllServices(): Array<{ id: string; name: string }> {
     { id: SERVICE_TYPES.GROUP_THERAPY, name: 'Group Therapy' },
     { id: SERVICE_TYPES.YOGA_WELLNESS, name: 'Yoga / Mind–Body Wellness Services' },
     { id: SERVICE_TYPES.NUTRITION, name: 'Nutrition & Lifestyle Guidance' },
+    { id: SERVICE_TYPES.CHILD_ADOLESCENT, name: 'Child & Adolescent Online Services' },
   ];
 }
 
