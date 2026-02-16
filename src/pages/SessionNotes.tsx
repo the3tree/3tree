@@ -34,6 +34,7 @@ interface SessionNote {
     status: string;
     duration_minutes: number;
     created_at: string;
+    pdf_url?: string;
 }
 
 const DEFAULT_SOAP: SOAPNote = {
@@ -76,6 +77,9 @@ export default function SessionNotes() {
 
     useEffect(() => {
         if (selectedNote) {
+            // Load existing pdf_url for this note
+            setPdfUrl(selectedNote.pdf_url || null);
+
             if (selectedNote.soap_notes) {
                 setSoapNotes(selectedNote.soap_notes);
                 setUseSOAPFormat(true);
@@ -110,20 +114,35 @@ export default function SessionNotes() {
                 .from('bookings')
                 .select(`
                     id, scheduled_at, service_type, status, duration_minutes,
-                    notes_therapist, created_at, client_id,
-                    users!bookings_client_id_fkey (id, full_name)
+                    notes, created_at, patient_id,
+                    users!bookings_patient_id_fkey (id, full_name)
                 `)
                 .eq('therapist_id', therapist.id)
                 .in('status', ['completed', 'confirmed', 'in_progress'])
                 .order('scheduled_at', { ascending: false });
 
+            // Fetch saved PDF URLs from session_notes table
+            const bookingIds = (bookings || []).map((b: any) => b.id);
+            const { data: sessionNotesData } = bookingIds.length > 0
+                ? await supabase
+                    .from('session_notes')
+                    .select('booking_id, pdf_url')
+                    .in('booking_id', bookingIds)
+                    .not('pdf_url', 'is', null)
+                : { data: [] };
+
+            const pdfUrlMap = new Map<string, string>();
+            (sessionNotesData || []).forEach((sn: any) => {
+                if (sn.pdf_url) pdfUrlMap.set(sn.booking_id, sn.pdf_url);
+            });
+
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const notesData: SessionNote[] = (bookings || []).map((b: any) => {
                 let soapData: SOAPNote | null = null;
-                let plainNotes = b.notes_therapist || '';
+                let plainNotes = b.notes || '';
 
                 try {
-                    const parsed = JSON.parse(b.notes_therapist || '{}');
+                    const parsed = JSON.parse(b.notes || '{}');
                     if (parsed.subjective !== undefined) {
                         soapData = parsed;
                         plainNotes = '';
@@ -134,14 +153,15 @@ export default function SessionNotes() {
                     id: b.id,
                     booking_id: b.id,
                     patient_name: b.users?.full_name || 'Patient',
-                    patient_id: b.users?.id || b.client_id,
+                    patient_id: b.users?.id || b.patient_id,
                     session_date: b.scheduled_at,
                     service_type: b.service_type || 'individual',
                     notes: plainNotes,
                     soap_notes: soapData,
                     status: b.status,
                     duration_minutes: b.duration_minutes || 50,
-                    created_at: b.created_at
+                    created_at: b.created_at,
+                    pdf_url: pdfUrlMap.get(b.id)
                 };
             });
 
@@ -164,7 +184,7 @@ export default function SessionNotes() {
 
             const { error } = await supabase
                 .from('bookings')
-                .update({ notes_therapist: notesContent })
+                .update({ notes: notesContent })
                 .eq('id', selectedNote.id);
 
             if (error) throw error;
@@ -281,6 +301,13 @@ export default function SessionNotes() {
             if (error) throw error;
             if (url) {
                 setPdfUrl(url);
+                // Update local state so the PDF badge appears immediately
+                setNotes(prev => prev.map(n =>
+                    n.id === selectedNote.id ? { ...n, pdf_url: url } : n
+                ));
+                if (selectedNote) {
+                    setSelectedNote({ ...selectedNote, pdf_url: url });
+                }
                 toast({
                     title: '☁️ PDF Saved to Cloud',
                     description: 'Session notes PDF uploaded securely to cloud storage.'
@@ -446,6 +473,11 @@ export default function SessionNotes() {
                                                     {formatDate(note.session_date)}
                                                     <Clock className="w-3 h-3 ml-2" />
                                                     {formatTime(note.session_date)}
+                                                    {note.pdf_url && (
+                                                        <span className="ml-auto bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                                            PDF
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </button>
                                         ))

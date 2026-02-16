@@ -137,43 +137,53 @@ export default function VideoCallRoom() {
 
                 // Try multiple query approaches - FK constraint names may vary
                 const queryVariants = [
-                    // Approach 1: With explicit FK constraint names - Corrected for patient_id
-                    `id, scheduled_at, service_type, duration_minutes, notes_therapist, status, session_mode, patient_id, therapist_id, room_id, meeting_link,
+                    // Approach 1: With explicit FK constraint names
+                    `id, scheduled_at, service_type, duration_minutes, notes, status, patient_id, therapist_id, meeting_link,
                      patient:users!bookings_patient_id_fkey(id, full_name),
                      therapist:therapists!bookings_therapist_id_fkey(id, user:users!therapists_user_id_fkey(id, full_name))`,
-                    // Approach 2: Without FK names (auto-detect)
-                    `id, scheduled_at, service_type, duration_minutes, notes_therapist, status, session_mode, patient_id, therapist_id, room_id, meeting_link,
-                     patient:users!patient_id(id, full_name),
-                     therapist:therapists!therapist_id(id, user:users!user_id(id, full_name))`,
-                    // Approach 3: Minimal - just flat columns
-                    `id, scheduled_at, service_type, duration_minutes, notes_therapist, status, session_mode, patient_id, therapist_id, room_id, meeting_link`,
+                    // Approach 2: Minimal - just flat columns (safe fallback)
+                    `id, scheduled_at, service_type, duration_minutes, notes, status, patient_id, therapist_id, meeting_link`,
                 ];
 
                 for (const queryStr of queryVariants) {
                     if (booking) break;
 
-                    // Try by booking ID first (dashboard navigates with /call/{bookingId})
-                    const { data: byId } = await supabase
-                        .from('bookings')
-                        .select(queryStr)
-                        .eq('id', roomId)
-                        .maybeSingle();
+                    try {
+                        // Try by booking ID (dashboard navigates with /call/{bookingId})
+                        const { data: byId, error: queryError } = await supabase
+                            .from('bookings')
+                            .select(queryStr)
+                            .eq('id', roomId)
+                            .maybeSingle();
 
-                    if (byId) {
-                        booking = byId;
-                        break;
+                        if (queryError) {
+                            console.warn('Query variant failed:', queryError.message);
+                            continue;
+                        }
+
+                        if (byId) {
+                            booking = byId;
+                            break;
+                        }
+                    } catch (e) {
+                        console.warn('Query variant threw:', e);
+                        continue;
                     }
 
-                    // Try by room_id
-                    const { data: byRoom } = await supabase
-                        .from('bookings')
-                        .select(queryStr)
-                        .eq('room_id', roomId)
-                        .maybeSingle();
+                    // Try extracting booking from meeting_link as fallback
+                    try {
+                        const { data: byMeetingLink, error: mlError } = await supabase
+                            .from('bookings')
+                            .select(queryStr)
+                            .ilike('meeting_link', `%${roomId}%`)
+                            .maybeSingle();
 
-                    if (byRoom) {
-                        booking = byRoom;
-                        break;
+                        if (!mlError && byMeetingLink) {
+                            booking = byMeetingLink;
+                            break;
+                        }
+                    } catch (e) {
+                        console.warn('Meeting link query failed:', e);
                     }
                 }
 
@@ -265,15 +275,15 @@ export default function VideoCallRoom() {
                         service_type: booking.service_type || 'individual',
                         duration_minutes: booking.duration_minutes || 50,
                         is_therapist: isTherapist,
-                        notes_therapist: booking.notes_therapist
+                        notes_therapist: booking.notes
                     });
 
                     // Initial name set from booking/user
                     let currentPatientName = patientName;
 
-                    if (isTherapist && booking.notes_therapist) {
+                    if (isTherapist && booking.notes) {
                         try {
-                            const parsed = JSON.parse(booking.notes_therapist);
+                            const parsed = JSON.parse(booking.notes);
                             // Handling SOAP JSON
                             if (parsed.subjective !== undefined) {
                                 setSoapNotes(parsed);
@@ -288,12 +298,12 @@ export default function VideoCallRoom() {
                             }
                             // Handling legacy simple text that happens to be valid JSON (unlikely but possible)
                             else {
-                                setSimpleNotes(booking.notes_therapist);
+                                setSimpleNotes(booking.notes);
                                 setNotesMode('simple');
                             }
                         } catch {
                             // Plain text (legacy simple notes)
-                            setSimpleNotes(booking.notes_therapist);
+                            setSimpleNotes(booking.notes);
                             setNotesMode('simple');
                         }
                     }
@@ -412,7 +422,7 @@ export default function VideoCallRoom() {
             // Save to bookings table
             const { error } = await supabase
                 .from('bookings')
-                .update({ notes_therapist: notesContent })
+                .update({ notes: notesContent })
                 .eq('id', sessionInfo.booking_id);
 
             if (error) throw error;
@@ -825,7 +835,7 @@ export default function VideoCallRoom() {
                         {/* Notes Button - Therapist Only */}
                         {sessionInfo?.is_therapist && (
                             <>
-                                {/* <Button
+                                <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setShowAssessments(true)}
@@ -844,7 +854,7 @@ export default function VideoCallRoom() {
                                 >
                                     <Pill className="w-4 h-4 mr-2" />
                                     Prescription
-                                </Button> */}
+                                </Button>
                                 <Button
                                     variant="ghost"
                                     size="sm"

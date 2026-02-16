@@ -463,7 +463,7 @@ function calculateRiskLevel(assessments: AssessmentSubmission[]): 'low' | 'moder
     if (assessments.length === 0) return 'low';
 
     const severities = assessments.map(a => a.severity?.toLowerCase() || '');
-    
+
     const severeKeywords = ['severe', 'critical', 'high risk', 'crisis'];
     const highKeywords = ['moderate to severe', 'moderately severe', 'high'];
     const moderateKeywords = ['moderate', 'mild to moderate'];
@@ -511,6 +511,39 @@ export function formatAssessmentName(slug: string): string {
     return names[slug] || slug.toUpperCase();
 }
 
+/**
+ * Questionnaire submission type for intake forms
+ */
+export interface QuestionnaireSubmission {
+    id: string;
+    user_id: string;
+    questionnaire_id: string;
+    service_type: string;
+    data: Record<string, unknown>;
+    submitted_at: string;
+}
+
+/**
+ * Get patient's intake questionnaire responses for therapist preview
+ */
+export async function getPatientQuestionnaireResponses(
+    patientId: string
+): Promise<{ data: QuestionnaireSubmission[]; error: Error | null }> {
+    try {
+        const { data, error } = await supabase
+            .from('service_questionnaire_submissions')
+            .select('*')
+            .eq('user_id', patientId)
+            .order('submitted_at', { ascending: false });
+
+        if (error) throw error;
+        return { data: (data || []) as QuestionnaireSubmission[], error: null };
+    } catch (error) {
+        console.error('Error fetching questionnaire responses:', error);
+        return { data: [], error: error as Error };
+    }
+}
+
 export default {
     fetchAssessments,
     getAssessmentBySlug,
@@ -522,5 +555,6 @@ export default {
     getSeverityColor,
     getPatientAssessmentSummary,
     getRiskLevelColor,
-    formatAssessmentName
+    formatAssessmentName,
+    getPatientQuestionnaireResponses
 };

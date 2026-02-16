@@ -32,7 +32,7 @@ export async function getBookingsNeedingReminders(): Promise<{
         .from('bookings')
         .select(`
             id, scheduled_at, status,
-            client:users!bookings_client_id_fkey(email, full_name),
+            client:users!bookings_patient_id_fkey(email, full_name),
             therapist:therapists!bookings_therapist_id_fkey(
                 user:users(full_name)
             )
@@ -45,7 +45,7 @@ export async function getBookingsNeedingReminders(): Promise<{
         .from('bookings')
         .select(`
             id, scheduled_at, status,
-            client:users!bookings_client_id_fkey(email, full_name),
+            client:users!bookings_patient_id_fkey(email, full_name),
             therapist:therapists!bookings_therapist_id_fkey(
                 user:users(full_name)
             )

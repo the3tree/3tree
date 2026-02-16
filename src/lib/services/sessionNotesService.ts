@@ -24,6 +24,7 @@ export interface SessionNote {
     // Metadata
     is_signed: boolean;
     signed_at?: string;
+    pdf_url?: string;
     created_at: string;
     updated_at: string;
 }

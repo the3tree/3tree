@@ -282,7 +282,7 @@ export async function saveSessionNotesPDFToImageKit(
 
         const fileName = `session-notes-${data.patientName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`;
 
-        // Convert blob to base64 for ImageKit upload
+        // Convert blob to base64 for fallback
         const base64Data = await blobToBase64(pdfBlob);
 
         const { data: uploadResult, error: uploadError } = await uploadToImageKit(
@@ -292,18 +292,19 @@ export async function saveSessionNotesPDFToImageKit(
         );
 
         if (uploadError || !uploadResult) {
-            // Fallback: store as base64 in database if ImageKit fails
-            console.warn('ImageKit upload failed, saving reference only:', uploadError);
+            // Fallback: ImageKit upload failed, save base64 data URL reference
+            console.warn('ImageKit upload failed, saving base64 reference:', uploadError);
 
-            // Still try to save the URL if we got one
             if (noteId) {
                 await supabase
                     .from('session_notes')
-                    .update({ updated_at: new Date().toISOString() })
+                    .update({
+                        pdf_url: base64Data,
+                        updated_at: new Date().toISOString()
+                    })
                     .eq('id', noteId);
             }
 
-            // Return base64 as data URL for immediate viewing
             return { url: base64Data, error: null };
         }
 
@@ -311,7 +312,10 @@ export async function saveSessionNotesPDFToImageKit(
         if (noteId) {
             await supabase
                 .from('session_notes')
-                .update({ updated_at: new Date().toISOString() })
+                .update({
+                    pdf_url: uploadResult.url,
+                    updated_at: new Date().toISOString()
+                })
                 .eq('id', noteId);
         }
 

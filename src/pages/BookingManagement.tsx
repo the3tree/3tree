@@ -75,7 +75,7 @@ export default function BookingManagement() {
                 .select(`
                     id, scheduled_at, duration_minutes, status, session_mode, 
                     service_type, amount, payment_status, notes_client, meeting_url, created_at,
-                    client:users!bookings_client_id_fkey(id, full_name, email, phone),
+                    client:users!bookings_patient_id_fkey(id, full_name, email, phone),
                     therapist:therapists!bookings_therapist_id_fkey(id, user:users(full_name, email))
                 `)
                 .order('scheduled_at', { ascending: timeFilter === 'upcoming' });
